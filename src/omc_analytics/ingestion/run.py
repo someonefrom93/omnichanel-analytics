@@ -2,6 +2,13 @@
 
 PR1 uses InMemorySecrets and InMemoryLogs stubs.
 PR2 swaps these for KMS-backed secrets and Postgres-backed logs.
+
+OMCAE_* environment variables (documented in click help):
+    OMCAE_SECRETS_BACKEND   — memory (default) | kms
+    OMCAE_LOGS_BACKEND     — memory (default) | sqlite | postgres
+    OMCAE_KMS_KEY_ID       — required when SECRETS_BACKEND=kms
+    OMCAE_PG_DSN           — required when LOGS_BACKEND=postgres
+    OMCAE_AWS_REGION       — default us-east-1 (used for boto3 clients)
 """
 
 from __future__ import annotations
@@ -16,11 +23,16 @@ import boto3
 import click
 import requests
 
-from omc_analytics.common.config import RunContext
-from omc_analytics.common.logs import InMemoryLogs, RunLog
+from omc_analytics.common.config import (
+    RunContext,
+    _read_env_defaults,
+    logs_factory,
+    secrets_factory,
+)
+from omc_analytics.common.logs import LogsPort, RunLog
 from omc_analytics.common.secrets import (
-    InMemorySecrets,
     MerchantNotFoundError,
+    SecretsPort,
 )
 from omc_analytics.ingestion.backoff import RetryPolicy
 from omc_analytics.ingestion.bronze_writer import BronzeWriter
@@ -251,12 +263,12 @@ def _build_deps(
     merchant_id: str,
     env: Literal["dev", "staging", "prod"],
     *,
-    secrets: InMemorySecrets,
-    logs: InMemoryLogs,
+    secrets: SecretsPort,
+    logs: LogsPort,
     s3_client: Any,
 ) -> tuple[
-    InMemorySecrets,
-    InMemoryLogs,
+    SecretsPort,
+    LogsPort,
     OAuthRefresher,
     OtterClient,
     BronzeWriter,
@@ -356,15 +368,69 @@ def cli() -> None:
     help="Target environment.",
 )
 def run_bronze(merchant_id: str, env: str) -> None:
-    """Run the Bronze ingestion pipeline for a merchant."""
+    """Run the Bronze ingestion pipeline for a merchant.
+
+       Backend selection is controlled by environment variables (no new flags;
+       all configuration is through OMCAE_* env vars read transparently):
+
+       \b
+    - OMCAE_SECRETS_BACKEND  memory (default) | kms
+       - OMCAE_LOGS_BACKEND    memory (default) | sqlite | postgres
+       - OMCAE_KMS_KEY_ID      required when SECRETS_BACKEND=kms
+       - OMCAE_PG_DSN          required when LOGS_BACKEND=postgres
+       - OMCAE_AWS_REGION      default us-east-1
+    """
     assert env in (
         "dev",
         "staging",
         "prod",
     ), f"env must be one of dev|staging|prod, got {env!r}"
-    secrets: InMemorySecrets = InMemorySecrets()
-    logs: InMemoryLogs = InMemoryLogs()
-    s3_client = boto3.client("s3", region_name="us-east-1")
+
+    # Read backend configuration from environment
+    env_defaults = _read_env_defaults()
+    aws_region = env_defaults["aws_region"]
+
+    # Build RunContext with backend fields set from env vars
+    run_ctx = RunContext(
+        run_id=uuid4(),
+        merchant_id=merchant_id,
+        env=env,  # type: ignore[arg-type]
+        bucket_name=f"ofae-data-lakehouse-bronze-{env}",
+        run_timestamp_utc=datetime.now(UTC),
+        secrets_backend=env_defaults["secrets_backend"],
+        logs_backend=env_defaults["logs_backend"],
+        kms_key_id=env_defaults["kms_key_id"] or None,
+        pg_dsn=env_defaults["pg_dsn"] or None,
+        aws_region=aws_region,
+    )
+
+    # Build S3 client (real boto3)
+    s3_client = boto3.client("s3", region_name=aws_region)
+
+    # Build KMS client if needed (only when secrets_backend=kms)
+    kms_client = None
+    if run_ctx.secrets_backend == "kms":
+        kms_client = boto3.client("kms", region_name=aws_region)
+
+    # Build blob store for KMS (in-memory for now; PostgresBlobStore is PR2b)
+    blob_store = None
+    if run_ctx.secrets_backend == "kms":
+        from omc_analytics.common.kms_secrets import InMemoryBlobStore
+
+        blob_store = InMemoryBlobStore()
+
+    # Build connection factory for PostgresLogs (only when logs_backend=postgres)
+    connection_factory = None
+    if run_ctx.logs_backend == "postgres" and run_ctx.pg_dsn:
+        import functools
+
+        import psycopg2
+
+        connection_factory = functools.partial(psycopg2.connect, dsn=run_ctx.pg_dsn)
+
+    # Use factories to build the right implementations
+    secrets = secrets_factory(run_ctx, kms_client=kms_client, blob_store=blob_store)
+    logs = logs_factory(run_ctx, connection_factory=connection_factory)
 
     _secrets, _logs, _oauth, _otter, _bronze, run_ctx = _build_deps(
         merchant_id=merchant_id,
@@ -374,7 +440,7 @@ def run_bronze(merchant_id: str, env: str) -> None:
         s3_client=s3_client,
     )
 
-    run_bronze_impl(run_ctx)
+    run_bronze_impl(run_ctx)  # use the run_ctx from _build_deps
     click.echo(f"Bronze ingestion complete for merchant {merchant_id}.")
 
 

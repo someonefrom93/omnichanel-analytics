@@ -182,7 +182,13 @@ class KMSSecrets:
             )
 
         # Step 2: Validate required fields
-        required_fields = {"key_id", "ciphertext_blob", "encrypted_payload", "nonce", "aad_merchant_id"}
+        required_fields = {
+            "key_id",
+            "ciphertext_blob",
+            "encrypted_payload",
+            "nonce",
+            "aad_merchant_id",
+        }
         missing = required_fields - set(blob.keys())
         if missing:
             raise MerchantBlobCorruptError(

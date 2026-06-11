@@ -26,6 +26,7 @@ from omc_analytics.common.secrets import (
 # Fixture: KMS key (autouse, mocked)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def kms_key():
     """Create a moto-mocked KMS key for each test."""
@@ -42,16 +43,20 @@ def kms_key():
 # Helper: build a KMSSecrets + InMemoryBlobStore instance
 # ---------------------------------------------------------------------------
 
+
 def _make_kms_secrets(kms_key_id: str):
     """Return (KMSSecrets, InMemoryBlobStore) wired together."""
     kms_client = boto3.client("kms", region_name="us-east-1")
     blob_store = InMemoryBlobStore()
-    return KMSSecrets(kms_client=kms_client, blob_store=blob_store, kms_key_id=kms_key_id)
+    return KMSSecrets(
+        kms_client=kms_client, blob_store=blob_store, kms_key_id=kms_key_id
+    )
 
 
 # ---------------------------------------------------------------------------
 # Test cases
 # ---------------------------------------------------------------------------
+
 
 def test_save_then_load_roundtrips_payload(kms_key):
     """Happy path: save a dict, load returns the same dict."""
@@ -109,7 +114,9 @@ def test_save_serializes_payload_as_json(kms_key):
     secrets.save(creds)
     blob = secrets._blob_store.get("M1")
     # blob stores raw bytes (not base64) to match Postgres BYTEA behavior
-    plaintext_key = kms_client.decrypt(CiphertextBlob=blob["ciphertext_blob"])["Plaintext"]
+    plaintext_key = kms_client.decrypt(CiphertextBlob=blob["ciphertext_blob"])[
+        "Plaintext"
+    ]
     nonce = blob["nonce"]
     aad = b"M1"
     ciphertext = blob["encrypted_payload"]
@@ -134,7 +141,13 @@ def test_save_stores_all_five_required_blob_fields(kms_key):
     )
     secrets.save(creds)
     blob = secrets._blob_store.get("M1")
-    required = {"key_id", "ciphertext_blob", "encrypted_payload", "nonce", "aad_merchant_id"}
+    required = {
+        "key_id",
+        "ciphertext_blob",
+        "encrypted_payload",
+        "nonce",
+        "aad_merchant_id",
+    }
     assert set(blob.keys()) == required, f"Expected {required}, got {set(blob.keys())}"
 
 
@@ -219,9 +232,9 @@ def test_save_zeroizes_plaintext_data_key(kms_key):
     with mock.patch.object(AESGCM, "__init__", spy_aesgcm_init):
         secrets.save(creds)
 
-    assert len(captured_bytearray_ref) == 1, (
-        "AESGCM should have been instantiated once with a bytearray key"
-    )
+    assert (
+        len(captured_bytearray_ref) == 1
+    ), "AESGCM should have been instantiated once with a bytearray key"
     # The impl must zeroize the bytearray in place after the AESGCM construction.
     # Since we hold a strong reference to the same object, we observe the zeros.
     plaintext_key_ref = captured_bytearray_ref[0]
@@ -242,11 +255,15 @@ def test_save_wraps_boto3_client_error_on_generate(kms_key):
         client_id="cid",
         client_secret_encrypted="secret",
     )
-    error_response = {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}}
+    error_response = {
+        "Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}
+    }
     client_error = ClientError(error_response, "GenerateDataKey")
 
     # Patch the generate_data_key method on the actual kms_client stored in KMSSecrets
-    with mock.patch.object(secrets._kms_client, "generate_data_key", side_effect=client_error):
+    with mock.patch.object(
+        secrets._kms_client, "generate_data_key", side_effect=client_error
+    ):
         with pytest.raises(KMSKeyError):
             secrets.save(creds)
 
@@ -264,7 +281,9 @@ def test_load_wraps_boto3_client_error_on_decrypt(kms_key):
     )
     secrets.save(creds)
 
-    error_response = {"Error": {"Code": "InvalidCiphertextException", "Message": "Invalid cipher"}}
+    error_response = {
+        "Error": {"Code": "InvalidCiphertextException", "Message": "Invalid cipher"}
+    }
     client_error = ClientError(error_response, "Decrypt")
 
     # Patch the decrypt method on the actual kms_client stored in KMSSecrets
@@ -279,7 +298,13 @@ def test_blob_store_protocol_compatible_with_in_memory(kms_key):
     assert hasattr(store, "put")
     assert hasattr(store, "get")
     # put and get work without raising
-    blob_dict = {"key_id": "k1", "ciphertext_blob": b"ct", "encrypted_payload": b"ep", "nonce": b"n", "aad_merchant_id": "M1"}
+    blob_dict = {
+        "key_id": "k1",
+        "ciphertext_blob": b"ct",
+        "encrypted_payload": b"ep",
+        "nonce": b"n",
+        "aad_merchant_id": "M1",
+    }
     store.put("M1", blob_dict)
     result = store.get("M1")
     assert result == blob_dict
