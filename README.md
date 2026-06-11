@@ -94,6 +94,39 @@ export AWS_SECRET_ACCESS_KEY=xxxxx
 omc-ingest run-bronze --merchant-id my-store --env prod
 ```
 
+### Backfill
+
+The `omc-ingest run-bronze` command supports a backfill mode that re-runs
+the Bronze ingestion for the last N days, useful for populating dashboards
+after onboarding a new tenant or recovering from a multi-day outage.
+
+Flags:
+
+- `--backfill / --no-backfill` (default `--no-backfill`): enable backfill mode.
+- `--backfill-days N` (default 30, range 1-90): how many days to backfill.
+
+Examples:
+
+```bash
+# Re-run the last 7 days of Bronze ingestion for a merchant
+omc-ingest run-bronze --merchant-id M1 --env prod --backfill --backfill-days 7
+
+# Default behavior (single T-1 run)
+omc-ingest run-bronze --merchant-id M1 --env prod
+```
+
+**Idempotency contract**: backfill iterations partition by **order date**
+(so the S3 path `otter/merchant_id={id}/year=YYYY/month=MM/day=DD/` reflects
+the data, not the run time). Filenames use the run timestamp. Re-running
+the same backfill date creates multiple timestamped objects under the
+same partition; the Silver tier (PR3, upcoming) will pick the latest
+when materializing.
+
+**Fail-soft semantics**: each backfill day is independent. If day 2 fails,
+days 1 and 3 still complete. The CLI exits with code 0 if all days
+succeed, or 1 if any day failed. Each day gets its own
+`pipeline_execution_logs` row (with the `run_id` and `target_date`).
+
 ## Architecture
 
 ```
@@ -110,7 +143,7 @@ CLI (Click)
 ## What's Next
 
 - [x] **PR2a** — KMSSecrets + PostgresLogs + Config wiring (DONE)
-- [ ] **PR2b** — Backfill loop (`--backfill` flag, `compute_window_for_date`, `backfill_dates`)
+- [x] **PR2b** — Backfill loop (`--backfill` flag, `compute_window_for_date`, `backfill_dates`) (DONE)
 - [ ] **PR3** — dbt Silver/Gold transformation layer
 - [ ] Docker containerization and scheduled orchestration
 - [ ] End-to-end encrypted credential bootstrap flow

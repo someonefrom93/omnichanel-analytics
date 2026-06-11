@@ -411,6 +411,8 @@ def _build_deps(
     secrets: SecretsPort,
     logs: LogsPort,
     s3_client: Any,
+    backfill: bool = False,
+    backfill_days: int = 30,
 ) -> tuple[
     SecretsPort,
     LogsPort,
@@ -483,6 +485,8 @@ def _build_deps(
         rate_limit_policy=rate_limit_policy,
         transient_401_policy=transient_401_policy,
         report_poll_policy=report_poll_policy,
+        backfill=backfill,
+        backfill_days=backfill_days,
     )
 
     return secrets, logs, oauth, otter, bronze, run_ctx
@@ -512,7 +516,24 @@ def cli() -> None:
     type=click.Choice(["dev", "staging", "prod"]),
     help="Target environment.",
 )
-def run_bronze(merchant_id: str, env: str) -> None:
+@click.option(
+    "--backfill / --no-backfill",
+    default=False,
+    help="Run a 30-day (or N-day) backfill instead of the single T-1 run.",
+)
+@click.option(
+    "--backfill-days",
+    type=click.IntRange(1, 90),
+    default=30,
+    show_default=True,
+    help="Number of days to backfill (1-90). Only used when --backfill is set.",
+)
+def run_bronze(
+    merchant_id: str,
+    env: str,
+    backfill: bool,
+    backfill_days: int,
+) -> None:
     """Run the Bronze ingestion pipeline for a merchant.
 
        Backend selection is controlled by environment variables (no new flags;
@@ -525,6 +546,8 @@ def run_bronze(merchant_id: str, env: str) -> None:
        - OMCAE_PG_DSN          required when LOGS_BACKEND=postgres
        - OMCAE_AWS_REGION      default us-east-1
     """
+    import sys
+
     assert env in (
         "dev",
         "staging",
@@ -547,6 +570,8 @@ def run_bronze(merchant_id: str, env: str) -> None:
         kms_key_id=env_defaults["kms_key_id"] or None,
         pg_dsn=env_defaults["pg_dsn"] or None,
         aws_region=aws_region,
+        backfill=backfill,
+        backfill_days=backfill_days,
     )
 
     # Build S3 client (real boto3)
@@ -583,10 +608,17 @@ def run_bronze(merchant_id: str, env: str) -> None:
         secrets=secrets,
         logs=logs,
         s3_client=s3_client,
+        backfill=backfill,
+        backfill_days=backfill_days,
     )
 
-    run_bronze_impl(run_ctx)  # use the run_ctx from _build_deps
-    click.echo(f"Bronze ingestion complete for merchant {merchant_id}.")
+    if backfill:
+        return_code = run_bronze_with_backfill(run_ctx)
+        sys.exit(return_code)
+    else:
+        run_bronze_impl(run_ctx)
+        click.echo(f"Bronze ingestion complete for merchant {merchant_id}.")
+        sys.exit(0)
 
 
 if __name__ == "__main__":

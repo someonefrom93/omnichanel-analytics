@@ -166,3 +166,68 @@ def load_fixture():
         }
 
     return _load
+
+
+# ---------------------------------------------------------------------------
+# moto S3 fixture
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def moto_s3():
+    """Provides a moto-mocked boto3 S3 client and ensures the dev bucket exists."""
+    import boto3
+    import moto
+
+    with moto.mock_aws():
+        s3_client = boto3.client("s3", region_name="us-east-1")
+        s3_client.create_bucket(Bucket="ofae-data-lakehouse-bronze-dev")
+        yield s3_client
+
+
+# ---------------------------------------------------------------------------
+# otter_responses fixture — pre-registers common Otter endpoints
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def otter_responses():
+    """Pre-registers responses for the three Otter endpoints used in Bronze ingestion.
+
+    Returns a configured responses.RequestsMock context manager.
+    Tests should wrap HTTP calls with this fixture.
+    """
+    import responses
+
+    orders_payload = {"orders": [], "next_cursor": None}
+    report_enqueue_payload = {"jobId": "job_abc123", "status": "QUEUED"}
+    report_result_payload = {
+        "status": "READY",
+        "result": {
+            "store_id": "merchant_001",
+            "period_start": "2026-06-09T00:00:00Z",
+            "period_end": "2026-06-09T23:59:59Z",
+            "totals": {"gross_sales": {"amount": 0, "currency": "USD"}},
+        },
+    }
+
+    with responses.RequestsMock() as rs:
+        rs.add(
+            responses.GET,
+            "https://api.otter.dev/v1/orders",
+            json=orders_payload,
+            status=200,
+        )
+        rs.add(
+            responses.POST,
+            "https://api.otter.dev/v1/reports",
+            json=report_enqueue_payload,
+            status=200,
+        )
+        rs.add(
+            responses.GET,
+            "https://api.otter.dev/v1/reports/job_abc123",
+            json=report_result_payload,
+            status=200,
+        )
+        yield rs
