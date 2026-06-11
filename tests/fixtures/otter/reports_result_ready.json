@@ -1,0 +1,15 @@
+{
+  "provenance": "redoc-sample",
+  "fixture_version": "1.0",
+  "endpoint": "GET /v1/reports/{jobId}",
+  "status": "READY",
+  "result": {
+    "store_id": "store_001",
+    "period_start": "2026-06-09T00:00:00Z",
+    "period_end": "2026-06-09T23:59:59Z",
+    "totals": {
+      "gross_sales": {"amount": 12500, "currency": "USD"},
+      "net_payout": {"amount": 8750, "currency": "USD"}
+    }
+  }
+}

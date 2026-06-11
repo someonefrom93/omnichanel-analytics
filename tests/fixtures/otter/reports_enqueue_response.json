@@ -1,0 +1,7 @@
+{
+  "provenance": "redoc-sample",
+  "fixture_version": "1.0",
+  "endpoint": "POST /v1/reports",
+  "jobId": "job_abc123",
+  "status": "QUEUED"
+}

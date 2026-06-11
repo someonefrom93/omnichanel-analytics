@@ -1,69 +1,61 @@
-# Otter API Test Fixtures
+# Otter API Fixtures
 
-This directory contains JSON fixtures derived from the Otter Public API
-reference documentation (developer-guides.tryotter.com). These fixtures are
-used by `responses`-based unit tests and moto-S3 integration tests to avoid
-hitting the live API during CI.
+JSON fixtures derived from ReDoc samples at https://developer-guides.tryotter.com/api-reference/.
 
-## Fixture Naming Convention
+## Source Tagging
 
-Each fixture file should be named to reflect the API endpoint or response
-type it represents:
-
-- `orders_sample.json` — GET /v1/orders response
-- `oauth_token_sample.json` — POST /v1/auth/token response
-- `reports_enqueue_sample.json` — POST /v1/reports response (job enqueue)
-- `reports_result_sample.json` — GET /v1/reports/{jobId} result payload
-
-## Required Metadata Tags
-
-Every fixture MUST carry two top-level identifying fields:
+Each fixture carries three metadata fields (our additions, not Otter's):
 
 ```json
 {
   "source": "redoc-sample",
   "version": "1.0",
-  ...
+  "endpoint": "<method> /v1/<path>",
+  ...Otters response fields...
 }
 ```
 
-| Field   | Value          | Meaning                                            |
-|---------|----------------|----------------------------------------------------|
-| `source` | `redoc-sample` | Fixture derived from Otter API reference docs      |
-| `version` | `1.0`         | Schema version — bump when API shape changes       |
+- `source`: Always `"redoc-sample"` — indicates the fixture was built from
+  ReDoc documentation, not a live network capture.
+- `version`: Pinned to `"1.0"`. If the Otter API changes, copy the file
+  to a new versioned fixture rather than mutating the existing one.
+- `endpoint`: The exact method and path this fixture simulates. Used by
+  `test_fixtures.py` for naming-convention validation.
 
-The `source` tag enables filtering fixtures by origin in tests.
-The `version` tag enables migration when the API evolves.
+## Files
 
-## Fixture Content Rules
+| File | Endpoint | Description |
+|------|----------|-------------|
+| `orders_response.json` | `GET /v1/orders` | Paginated order list — 2 sample orders |
+| `reports_enqueue_response.json` | `POST /v1/reports` | Job enqueue confirmation — QUEUED |
+| `reports_result_ready.json` | `GET /v1/reports/{jobId}` | Terminal READY state with result payload |
+| `oauth_token_response.json` | `POST /v1/auth/token` | Token grant response — client_credentials flow |
 
-1. **Do not modify** fixture content to match test expectations — tests
-   must adapt to the documented API shape, not the other way around.
-2. **Do not add fixtures** for this directory without the `source` and
-   `version` tags. Untagged fixtures will fail CI.
-3. **Do not commit real credentials** — fixtures contain only synthetic
-   sample data derived from the API reference.
-4. **Version bump** when the Otter API adds breaking changes — update the
-   `version` field and create a new fixture file if the schema changes.
+## Usage in Tests
 
-## Loading Fixtures in Tests
-
-Use the helper in `tests/conftest.py` or load directly:
+Use `load_fixture()` from `tests/conftest.py` (or inline) to strip the metadata
+and use the raw Otter response:
 
 ```python
-import json
-from pathlib import Path
-
-FIXTURES_DIR = Path(__file__).parent / "fixtures" / "otter"
+import json, responses
 
 def load_fixture(name: str) -> dict:
-    path = FIXTURES_DIR / name
-    with open(path) as fh:
-        return json.load(fh)
+    path = Path(__file__).parent / f"{name}.json"
+    raw = json.loads(path.read_text())
+    return {k: v for k, v in raw.items()
+            if k not in ("provenance", "fixture_version", "endpoint")}
+
+@responses.activate
+def test_something():
+    payload = load_fixture("orders_response")
+    responses.add(responses.GET, ".../v1/orders", json=payload, status=200)
+    ...
 ```
 
-## CI / Network Isolation
+## Version Policy
 
-`pytest` runs against these fixtures via `responses.RequestsMock()`.
-No real HTTP calls to `api.otter.dev` should occur during the test suite.
-If a test makes a real network call, it will fail with a `ConnectionError`.
+- `fixture_version` is always `"1.0"` in PR1.
+- When the Otter API surface changes (PR2+), create `orders_response_v2.json`
+  rather than editing the existing file.
+- The `test_fixtures.py` validation suite will flag any file whose
+  `fixture_version` does not match the current pinned version.

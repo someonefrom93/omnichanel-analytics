@@ -42,3 +42,14 @@ class ReportJobCancelledError(Exception):
     def __init__(self, job_id: str) -> None:
         self.job_id = job_id
         super().__init__(f"Report job {job_id!r} was cancelled")
+
+
+class ReportPollingExhaustedError(Exception):
+    """Raised when report polling exhausts all retries without reaching READY."""
+
+    def __init__(self, job_id: str, max_retries: int) -> None:
+        self.job_id = job_id
+        self.max_retries = max_retries
+        super().__init__(
+            f"Report job {job_id!r} polling exhausted after {max_retries} retries without reaching READY"
+        )

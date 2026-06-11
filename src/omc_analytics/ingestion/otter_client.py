@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-import requests  # type: ignore[import-untyped]
+import requests
 
 from omc_analytics.common.secrets import SecretsPort
 from omc_analytics.ingestion.backoff import RetryPolicy
@@ -204,6 +204,10 @@ class OtterClient:
                 wait_time = self._rate_limit.wait_for(retry_count)
                 time.sleep(wait_time)
                 continue
+
+            if 500 <= resp.status_code < 600:
+                # Server error — raise immediately without retry
+                raise OtterAPIError(resp.status_code, resp.text)
 
             # Success (2xx)
             return resp

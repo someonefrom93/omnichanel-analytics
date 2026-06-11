@@ -5,9 +5,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
-import requests  # type: ignore[import-untyped]
+import requests
 
-from omc_analytics.common.secrets import MerchantCredentials, SecretsPort
+from omc_analytics.common.secrets import (
+    MerchantCredentials,
+    MerchantNotFoundError,
+    SecretsPort,
+)
 from omc_analytics.ingestion.errors import OAuthInitialTokenError, OAuthRefreshError
 
 
@@ -107,24 +111,48 @@ class OAuthRefresher:
         self._secrets.save(new_creds)
         return new_creds
 
-    def request_initial_token(self, merchant_id: str) -> MerchantCredentials:
+    def request_initial_token(
+        self,
+        merchant_id: str,
+        *,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+    ) -> MerchantCredentials:
         """Perform a client_credentials grant to get the initial access token.
 
         Args:
             merchant_id: The merchant whose credentials to use.
+            client_id: Optional client ID override. If not provided, loaded from secrets.
+            client_secret: Optional client secret override. If not provided, loaded from secrets.
 
         Returns:
             Updated MerchantCredentials with access_token, expires_at, and refresh_token.
 
         Raises:
             OAuthInitialTokenError: If the HTTP response is not 200.
+            MerchantNotFoundError: If the merchant is not in secrets AND no overrides provided.
         """
-        creds = self._secrets.load(merchant_id)
+        # Try to load existing creds; if missing and overrides provided, create minimal creds
+        try:
+            creds = self._secrets.load(merchant_id)
+        except MerchantNotFoundError:
+            if client_id is not None and client_secret is not None:
+                # Bootstrap case: merchant doesn't exist yet, but we have client creds
+                # PR2 would validate these come from a secure bootstrap channel
+                creds = MerchantCredentials(
+                    merchant_id=merchant_id,
+                    public_api_url="https://api.otter.dev",  # type: ignore[arg-type]
+                    client_id=client_id,
+                    client_secret_encrypted=client_secret,
+                )
+            else:
+                raise
+
         url = f"{str(creds.public_api_url).rstrip('/')}/v1/auth/token"
         body = {
             "grant_type": "client_credentials",
-            "client_id": creds.client_id,
-            "client_secret": creds.client_secret_encrypted,
+            "client_id": client_id or creds.client_id,
+            "client_secret": client_secret or creds.client_secret_encrypted,
         }
 
         resp = self._session.post(url, data=body)

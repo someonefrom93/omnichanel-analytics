@@ -139,3 +139,30 @@ def responses_mock():
 
     with responses.RequestsMock() as rs:
         yield rs
+
+
+# ---------------------------------------------------------------------------
+# Fixture helpers
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def load_fixture():
+    """Return a helper that strips provenance metadata from a fixture dict."""
+    from pathlib import Path
+
+    def _load(name: str) -> dict:
+        """Load a JSON fixture by name, stripping our provenance metadata.
+
+        The raw fixture has three extra keys: provenance, fixture_version, endpoint.
+        These are stripped so the returned dict matches the raw Otter API response.
+        """
+        path = Path(__file__).parent / "fixtures" / "otter" / f"{name}.json"
+        raw = __import__("json").loads(path.read_text())
+        return {
+            k: v
+            for k, v in raw.items()
+            if k not in ("provenance", "fixture_version", "endpoint")
+        }
+
+    return _load

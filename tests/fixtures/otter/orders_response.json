@@ -1,0 +1,46 @@
+{
+  "provenance": "redoc-sample",
+  "fixture_version": "1.0",
+  "endpoint": "GET /v1/orders",
+  "orders": [
+    {
+      "id": "ord_001",
+      "store_id": "store_001",
+      "channel": "ubereats",
+      "created_at": "2026-06-10T12:00:00Z",
+      "total": {"amount": 2500, "currency": "USD"},
+      "items": [
+        {
+          "sku": "BURGER_CLASSIC",
+          "name": "Classic Burger",
+          "qty": 1,
+          "unit_price": {"amount": 1200, "currency": "USD"}
+        }
+      ],
+      "customer": {
+        "name_hash": "<sha256-of-john-doe>",
+        "phone_hash": "<sha256-of-555-5555>"
+      }
+    },
+    {
+      "id": "ord_002",
+      "store_id": "store_001",
+      "channel": "doordash",
+      "created_at": "2026-06-10T13:00:00Z",
+      "total": {"amount": 1800, "currency": "USD"},
+      "items": [
+        {
+          "sku": "FRIES_MEDIUM",
+          "name": "Medium Fries",
+          "qty": 2,
+          "unit_price": {"amount": 400, "currency": "USD"}
+        }
+      ],
+      "customer": {
+        "name_hash": "<sha256-of-jane-doe>",
+        "phone_hash": "<sha256-of-555-5556>"
+      }
+    }
+  ],
+  "next_cursor": null
+}
