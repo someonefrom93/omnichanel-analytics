@@ -1,4 +1,4 @@
-"""Guard against fixture drift — validates provenance metadata in all Otter fixtures."""
+"""Guard against fixture drift — validates source/version metadata in all Otter fixtures."""
 
 from __future__ import annotations
 
@@ -25,28 +25,28 @@ class TestFixtureMetadata:
         assert path.exists(), f"Fixture {name!r} not found at {path}"
 
     @pytest.mark.parametrize("name", KNOWN_FIXTURES)
-    def test_provenance_is_redoc_sample(self, name: str) -> None:
-        """Every fixture must have provenance == 'redoc-sample'."""
+    def test_source_is_redoc_sample(self, name: str) -> None:
+        """Every fixture must have source == 'redoc-sample'."""
         import json
 
         path = FIXTURE_DIR / f"{name}.json"
         data = json.loads(path.read_text())
-        assert "provenance" in data, f"{name}: missing provenance key"
+        assert "source" in data, f"{name}: missing source key"
         assert (
-            data["provenance"] == "redoc-sample"
-        ), f"{name}: provenance must be 'redoc-sample', got {data['provenance']!r}"
+            data["source"] == "redoc-sample"
+        ), f"{name}: source must be 'redoc-sample', got {data['source']!r}"
 
     @pytest.mark.parametrize("name", KNOWN_FIXTURES)
-    def test_fixture_version_is_1_0(self, name: str) -> None:
-        """Every fixture must have fixture_version == '1.0'."""
+    def test_version_is_1_0(self, name: str) -> None:
+        """Every fixture must have version == '1.0'."""
         import json
 
         path = FIXTURE_DIR / f"{name}.json"
         data = json.loads(path.read_text())
-        assert "fixture_version" in data, f"{name}: missing fixture_version key"
+        assert "version" in data, f"{name}: missing version key"
         assert (
-            data["fixture_version"] == "1.0"
-        ), f"{name}: fixture_version must be '1.0', got {data['fixture_version']!r}"
+            data["version"] == "1.0"
+        ), f"{name}: version must be '1.0', got {data['version']!r}"
 
     @pytest.mark.parametrize("name", KNOWN_FIXTURES)
     def test_endpoint_matches_filename(self, name: str) -> None:
@@ -95,7 +95,7 @@ class TestFixtureMetadata:
 
         path = FIXTURE_DIR / f"{name}.json"
         data = json.loads(path.read_text())
-        known_meta = {"provenance", "fixture_version", "endpoint"}
+        known_meta = {"source", "version", "endpoint"}
         # Some fixtures may have extra keys from Otter; we only enforce that
         # the three meta keys are present and correctly valued.
         assert known_meta.issubset(

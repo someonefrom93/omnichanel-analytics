@@ -1,6 +1,6 @@
 {
-  "provenance": "redoc-sample",
-  "fixture_version": "1.0",
+  "source": "redoc-sample",
+  "version": "1.0",
   "endpoint": "GET /v1/reports/{jobId}",
   "status": "READY",
   "result": {

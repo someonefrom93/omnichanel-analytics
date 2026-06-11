@@ -1,6 +1,6 @@
 {
-  "provenance": "redoc-sample",
-  "fixture_version": "1.0",
+  "source": "redoc-sample",
+  "version": "1.0",
   "endpoint": "POST /v1/auth/token",
   "access_token": "eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJ0cnlvdHRlciIsImF1ZCI6Im9tY2FuYWx5dGljcyIsInN1YiI6Im1lcmNoYW50XzAwMSIsImlhdCI6MTc1MDAwMDAwMDAsImV4cCI6MTc1MDI5MzgwMH0.fake",
   "expires_in": 2627999,
