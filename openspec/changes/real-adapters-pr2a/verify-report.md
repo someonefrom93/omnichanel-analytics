@@ -3,16 +3,18 @@
 | Field | Value |
 |-------|-------|
 | **Change** | real-adapters-pr2a |
-| **Commit range** | 30f5788..HEAD (5 commits) |
-| **Verifier** | sdd-verify sub-agent |
+| **Commit range** | 30f5788..HEAD (6 commits) |
+| **Verifier** | sdd-verify sub-agent + orchestrator post-verify fixup |
 | **Date** | 2026-06-11 |
-| **Mode** | standard verify |
+| **Mode** | standard verify + post-verify fixup |
 
 ---
 
 ## Summary
 
-**PASS** — All182 unit tests pass, 4 integration tests collected (1 passed, 1 skipped due to Docker unavailability, 2 deselected by default). Quality gates clean (ruff, mypy, black all pass). All4 locked design decisions match implementation. PR2b (backfill loop) and PR3+ items are confirmed absent. One WARNING: the end-to-end integration test that exercises the full KMSSecrets+PostgresLogs stack with testcontainers was skipped because Docker is not available in this environment — the test itself is correctly implemented and the KMS round-trip integration test passes.
+**PASS** — 182 unit tests pass, 5 integration tests collected (5 passing, 0 skipped, 0 failing). Quality gates clean (ruff, mypy, black all pass). All 4 locked design decisions match implementation. PR2b (backfill loop) and PR3+ items are confirmed absent.
+
+**Post-verify fixup (commit `eb9c60e`):** After the initial sdd-verify pass, the user noted Docker was available locally; orchestrator re-ran the end-to-end integration test and identified 3 distinct non-environmental bugs (DSN format, factory signature, pool seeding). All 3 fixed in commit `eb9c60e`; the originally-WARNING testcontainers end-to-end test now passes. The original WARNING has been **resolved**; this is reflected throughout the report.
 
 ---
 
@@ -24,8 +26,8 @@
 | Unit tests passing | 182 |
 | Unit tests deselected | 5 |
 | Integration tests collected | 5 |
-| Integration tests passing | 4 |
-| Integration tests skipped | 1 |
+| Integration tests passing | 5 |
+| Integration tests skipped | 0 |
 | Total coverage (omc_analytics) | 88% |
 | Coverage: kms_secrets.py | 91% |
 | Coverage: postgres_logs.py | 72% |
@@ -39,13 +41,13 @@ uv run pytest --cov=src/omc_analytics --cov-report=term-missing
 → 182 passed, 5 deselected in 9.38s
 
 uv run pytest -m integration --cov=src/omc_analytics --cov-report=term-missing
-→ 4 passed, 1 skipped, 182 deselected in 2.45s
-  (test_end_to_end_pipeline_uses_real_adapters SKIPPED: Docker not available)
+→ 5 passed, 0 skipped, 182 deselected in 2.82s
+  (post-fixup, after commit eb9c60e)
 
 uv run pytest tests/integration/test_pr2a_end_to_end.py -v -m integration
-→ 1 passed, 1 skipped
- test_kms_round_trip_produces_valid_envelope_encryption PASSED
-  test_end_to_end_pipeline_uses_real_adapters SKIPPED (Docker/testcontainers unavailable)
+→ 2 passed
+  test_end_to_end_pipeline_uses_real_adapters PASSED
+  test_kms_round_trip_produces_valid_envelope_encryption PASSED
 ```
 
 ---
@@ -76,13 +78,13 @@ uv run pytest tests/integration/test_pr2a_end_to_end.py -v -m integration
 | | SCN-10 | OMCAE_SECRETS_BACKEND=kms selects KMSSecrets | `test_kms_backend_with_all_vars_returns_km_secrets` | ✅ PASS |
 | | SCN-11 | Missing KMS_KEY_ID raises ConfigError | `test_kms_backend_requires_kms_key_id` | ✅ PASS |
 | | SCN-12 | Missing PG_DSN raises ConfigError | `test_postgres_backend_requires_pg_dsn` | ✅ PASS |
-| **End-to-End Integration with Real Adapters** | SCN-13 | run_bronze_impl succeeds with KMSSecrets + PostgresLogs | `test_end_to_end_pipeline_uses_real_adapters` | ⚠️ SKIPPED (Docker unavailable) |
+| **End-to-End Integration with Real Adapters** | SCN-13 | run_bronze_impl succeeds with KMSSecrets + PostgresLogs | `test_end_to_end_pipeline_uses_real_adapters` | ✅ PASS (after fixup eb9c60e) |
 | | SCN-14 | KMS envelope encryption roundtrip (focused harness) | `test_kms_round_trip_produces_valid_envelope_encryption` | ✅ PASS |
 | **No Live Network Calls During pytest** | SCN-15 | All S3 operations handled by moto | implied by integration tests using moto mock_aws | ✅ PASS |
 | | SCN-16 | All KMS operations handled by moto | `test_kms_round_trip_produces_valid_envelope_encryption` | ✅ PASS |
-| | SCN-17 | Testcontainers Postgres provides isolated database | `test_end_to_end_pipeline_uses_real_adapters` | ⚠️ SKIPPED (Docker unavailable) |
+| | SCN-17 | Testcontainers Postgres provides isolated database | `test_end_to_end_pipeline_uses_real_adapters` | ✅ PASS (after fixup eb9c60e) |
 
-**Totals:** 17 scenarios total · 15 covered and passing · 2 skipped (Docker unavailable in this environment)
+**Totals:** 17 scenarios total · 17 covered and passing · 0 skipped · 0 missing
 
 ---
 
@@ -122,9 +124,11 @@ uv run pytest tests/integration/test_pr2a_end_to_end.py -v -m integration
 
 ## Findings
 
-### WARNING (1)
+### CRITICAL (0)
 
-1. **Integration test skipped due to Docker unavailability** — `test_end_to_end_pipeline_uses_real_adapters` (SCN-13, SCN-17) is correctly implemented and would validate the full KMSSecrets+PostgresLogs stack against moto S3/KMS + testcontainers Postgres, but the test was skipped because Docker is not available in this environment. The KMS round-trip focused harness test (`test_kms_round_trip_produces_valid_envelope_encryption`) passes, providing partial confidence. This is an environmental constraint, not an implementation defect.
+### WARNING (0)
+
+> The original WARNING ("integration test skipped due to Docker unavailability") is **resolved** by commit `eb9c60e`, which fixed 3 non-environmental bugs in the test (DSN format, factory signature, pool seeding). The testcontainers end-to-end test now passes locally with Docker available.
 
 ### SUGGESTION (1)
 
@@ -143,7 +147,7 @@ uv run pytest tests/integration/test_pr2a_end_to_end.py -v -m integration
 
 ## Recommended Follow-ups
 
-1. **Run `test_end_to_end_pipeline_uses_real_adapters` in an environment with Docker** to confirm the full KMSSecrets+PostgresLogs stack with testcontainers Postgres (SCN-13, SCN-17).
+1. **[RESOLVED in eb9c60e]** ~~Run `test_end_to_end_pipeline_uses_real_adapters` in an environment with Docker~~ — end-to-end test now passes locally; commit `eb9c60e` fixed 3 non-environmental bugs.
 2. **Consider adding a test for PostgresLogs pool exception path** to increase `postgres_logs.py` coverage from 72% → 80%+, exercising the `PostgresLogsError` wrapping path.
 3. **Monitor `test_end_to_end_pipeline_uses_real_adapters` in CI** — the testcontainers-based integration test is the proper gate for the end-to-end scenario; ensure CI has Docker available.
 
