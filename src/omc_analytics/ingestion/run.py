@@ -14,8 +14,9 @@ OMCAE_* environment variables (documented in click help):
 from __future__ import annotations
 
 import time
+import zoneinfo
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -49,8 +50,52 @@ from omc_analytics.ingestion.otter_client import OtterClient
 # ---------------------------------------------------------------------------
 
 
-def compute_t1_window(store_tz: Any, now_utc: datetime) -> tuple[datetime, datetime]:
-    """Compute the T-1 (yesterday) window in UTC for a store's local timezone.
+def compute_window_for_date(
+    target_date: date,
+    store_tz: zoneinfo.ZoneInfo,
+) -> tuple[datetime, datetime]:
+    """Compute the ingestion window for an arbitrary target date in a store timezone.
+
+    Args:
+        target_date: The calendar date (in the store's local timezone) to compute
+            the window for.
+        store_tz: A ZoneInfo for the store's local timezone.
+
+    Returns:
+        A tuple (start_utc, end_utc) where:
+        - start_utc is target_date 00:00:00 in store_tz, converted to UTC
+        - end_utc is target_date 23:59:59.999999 in store_tz, converted to UTC
+
+    Pure function: no clock, no I/O.
+    """
+    start_local = datetime(
+        target_date.year,
+        target_date.month,
+        target_date.day,
+        0,
+        0,
+        0,
+        0,
+        tzinfo=store_tz,
+    )
+    end_local = datetime(
+        target_date.year,
+        target_date.month,
+        target_date.day,
+        23,
+        59,
+        59,
+        999999,
+        tzinfo=store_tz,
+    )
+    return (start_local.astimezone(UTC), end_local.astimezone(UTC))
+
+
+def compute_t1_window(
+    store_tz: zoneinfo.ZoneInfo,
+    now_utc: datetime,
+) -> tuple[datetime, datetime]:
+    """Compute the T-1 (yesterday) ingestion window in UTC for a store's local timezone.
 
     Args:
         store_tz: A ZoneInfo for the store's local timezone.
@@ -59,19 +104,34 @@ def compute_t1_window(store_tz: Any, now_utc: datetime) -> tuple[datetime, datet
     Returns:
         A tuple (window_start_utc, window_end_utc) representing the
         T-1 day in the store's local timezone, expressed as UTC datetimes.
-        window_start_utc is the local midnight of yesterday.
-        window_end_utc is 23:59:59.999999 of yesterday in local time, as UTC.
     """
-    now_local = now_utc.astimezone(store_tz)
-    yesterday_local = now_local - timedelta(days=1)
-    t1_start_local = yesterday_local.replace(hour=0, minute=0, second=0, microsecond=0)
-    t1_end_local = yesterday_local.replace(
-        hour=23, minute=59, second=59, microsecond=999999
-    )
-    return (
-        t1_start_local.astimezone(UTC),
-        t1_end_local.astimezone(UTC),
-    )
+    yesterday = (now_utc.astimezone(store_tz) - timedelta(days=1)).date()
+    return compute_window_for_date(yesterday, store_tz)
+
+
+def compute_backfill_dates(
+    days: int,
+    now_utc: datetime,
+) -> list[date]:
+    """Return the dates to backfill, ordered oldest-first.
+
+    [now_utc.date() - timedelta(days=N), ..., now_utc.date() - timedelta(days=1)]
+    Excludes today (a T-1-style run already covers today once it lands).
+    Excludes dates further back than `days`.
+
+    Args:
+        days: Number of backfill days. Must be in [1, 90].
+        now_utc: The current time in UTC.
+
+    Returns:
+        A list of date objects, oldest-first.
+
+    Raises:
+        ValueError: If days is not in [1, 90].
+    """
+    if not 1 <= days <= 90:
+        raise ValueError(f"days must be in [1, 90], got {days}")
+    return [(now_utc.date() - timedelta(days=i)) for i in range(days, 0, -1)]
 
 
 def poll_report_until_ready(
