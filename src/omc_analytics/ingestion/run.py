@@ -18,7 +18,7 @@ import zoneinfo
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import boto3
 import click
@@ -183,11 +183,23 @@ def poll_report_until_ready(
 # ---------------------------------------------------------------------------
 
 
-def run_bronze_impl(run_ctx: RunContext) -> None:
+def run_bronze_impl(
+    run_ctx: RunContext,
+    *,
+    run_id_override: UUID | None = None,
+    run_timestamp_override: datetime | None = None,
+    target_date: date | None = None,
+) -> None:
     """Pure orchestration logic for one Bronze ingestion run.
 
     Args:
         run_ctx: A fully-populated RunContext with all dependencies injected.
+        run_id_override: If provided, use this UUID as the run_id for this iteration
+            instead of the run_ctx.run_id.
+        run_timestamp_override: If provided, use this datetime as run_timestamp_utc
+            for this iteration instead of datetime.now(UTC).
+        target_date: If provided, use this date for the Bronze partition path
+            (order/ingestion date) instead of T-1 computed from store timezone.
 
     Raises:
         MerchantNotFoundError: If credentials are missing and bootstrap fails.
@@ -199,6 +211,25 @@ def run_bronze_impl(run_ctx: RunContext) -> None:
         OtterAPIError: If the Otter API returns an unexpected error.
     """
     from zoneinfo import ZoneInfo
+
+    # ── Compute effective values from overrides or defaults ──────────────────
+    effective_run_id = (
+        run_id_override if run_id_override is not None else run_ctx.run_id
+    )
+    effective_run_timestamp_utc = (
+        run_timestamp_override
+        if run_timestamp_override is not None
+        else run_ctx.run_timestamp_utc
+    )
+    effective_target_date: date
+    if target_date is not None:
+        effective_target_date = target_date
+    else:
+        # Default: T-1 behavior (unchanged from PR2a)
+        store_tz_str = "America/New_York"  # will be overridden by creds
+        now_utc = datetime.now(UTC)
+        # We compute the store_tz after loading creds below
+        effective_target_date = (now_utc - timedelta(days=1)).date()
 
     merchant_id = run_ctx.merchant_id
     secrets = run_ctx.secrets
@@ -226,12 +257,12 @@ def run_bronze_impl(run_ctx: RunContext) -> None:
 
     # ── Step 2: Insert STARTED log row ────────────────────────────────────
     log_row = RunLog(
-        id=run_ctx.run_id,
+        id=effective_run_id,
         merchant_id=merchant_id,
-        run_id=run_ctx.run_id,
+        run_id=effective_run_id,
         pipeline_name="otter_bronze_ingestion",
         status="STARTED",
-        started_at=run_ctx.run_timestamp_utc,
+        started_at=effective_run_timestamp_utc,
     )
     try:
         logs.insert_started(log_row)  # type: ignore[union-attr]
@@ -242,19 +273,24 @@ def run_bronze_impl(run_ctx: RunContext) -> None:
     try:
         import json
 
-        # ── Step 3: Compute T-1 window ─────────────────────────────────────
+        # ── Step 3: Compute window from effective_target_date ───────────────
         store_tz_str = getattr(creds, "store_tz", "America/New_York")
         store_tz = ZoneInfo(store_tz_str)
-        now_utc = datetime.now(UTC)
-        t1_start, t1_end = compute_t1_window(store_tz, now_utc)
-        target_date = t1_start.date()
+        if target_date is not None:
+            # Override path: use the provided target_date directly
+            window_start, window_end = compute_window_for_date(target_date, store_tz)
+        else:
+            # T-1 path (default): same as PR2a behavior
+            now_utc = datetime.now(UTC)
+            window_start, window_end = compute_t1_window(store_tz, now_utc)
+            effective_target_date = window_start.date()
 
         # ── Step 4: Fetch and write orders ────────────────────────────────
         assert otter is not None
         orders_data = otter.fetch_orders(
             store_id=merchant_id,
-            start_utc=t1_start,
-            end_utc=t1_end,
+            start_utc=window_start,
+            end_utc=window_end,
         )
         assert bronze is not None
 
@@ -262,15 +298,15 @@ def run_bronze_impl(run_ctx: RunContext) -> None:
             merchant_id=merchant_id,
             endpoint="orders",
             payload=json.dumps(orders_data),
-            target_date=target_date,
-            run_timestamp_utc=run_ctx.run_timestamp_utc,
+            target_date=effective_target_date,
+            run_timestamp_utc=effective_run_timestamp_utc,
         )
 
         # ── Step 5: Request report job ────────────────────────────────────
         report_body = {
             "store_id": merchant_id,
-            "period_start": t1_start.isoformat(),
-            "period_end": t1_end.isoformat(),
+            "period_start": window_start.isoformat(),
+            "period_end": window_end.isoformat(),
             "report_type": "daily_summary",
         }
         job_id = otter.request_report(merchant_id, report_body)
@@ -279,8 +315,8 @@ def run_bronze_impl(run_ctx: RunContext) -> None:
             merchant_id=merchant_id,
             endpoint="reports_enqueue",
             payload=json.dumps(enqueue_payload),
-            target_date=target_date,
-            run_timestamp_utc=run_ctx.run_timestamp_utc,
+            target_date=effective_target_date,
+            run_timestamp_utc=effective_run_timestamp_utc,
         )
 
         # ── Step 6: Poll until READY ──────────────────────────────────────
@@ -295,13 +331,13 @@ def run_bronze_impl(run_ctx: RunContext) -> None:
             merchant_id=merchant_id,
             endpoint="reports_result",
             payload=json.dumps(result_data),
-            target_date=target_date,
-            run_timestamp_utc=run_ctx.run_timestamp_utc,
+            target_date=effective_target_date,
+            run_timestamp_utc=effective_run_timestamp_utc,
         )
 
         # ── Step 7: Mark SUCCESS ──────────────────────────────────────────
         logs.update_finished(  # type: ignore[union-attr]
-            run_ctx.run_id,
+            effective_run_id,
             status="SUCCESS",
             error_class=None,
             error_message=None,
@@ -310,12 +346,57 @@ def run_bronze_impl(run_ctx: RunContext) -> None:
     except Exception as exc:
         # Always update log to FAILED before re-raising
         logs.update_finished(  # type: ignore[union-attr]
-            run_ctx.run_id,
+            effective_run_id,
             status="FAILED",
             error_class=type(exc).__name__,
             error_message=str(exc),
         )
         raise
+
+
+def run_bronze_with_backfill(ctx: RunContext) -> int:
+    """Run the Bronze ingestion for each day in the backfill window.
+
+    Per-iteration:
+    - Fresh run_id (uuid4)
+    - Fresh run_timestamp_utc (datetime.now(UTC))
+    - target_date from compute_backfill_dates(...)
+
+    Fail-soft: each iteration is independent. On exception, write a FAILED
+    log row with error_class and error_message, then continue.
+
+    Returns 0 if all iterations succeeded; 1 if any failed.
+    The caller (CLI) should propagate this exit code to the OS.
+    """
+    if not ctx.backfill:
+        # backfill=False: run once with T-1 behavior (same as run_bronze_impl)
+        run_bronze_impl(ctx)
+        return 0
+
+    dates = compute_backfill_dates(ctx.backfill_days, datetime.now(UTC))
+    any_failed = False
+
+    for target_date in dates:
+        # Fresh per-iteration run_id and timestamp
+        per_iter_run_id = uuid4()
+        per_iter_timestamp = datetime.now(UTC)
+
+        try:
+            run_bronze_impl(
+                ctx,
+                run_id_override=per_iter_run_id,
+                run_timestamp_override=per_iter_timestamp,
+                target_date=target_date,
+            )
+        except Exception:
+            any_failed = True
+            # run_bronze_impl already wrote a FAILED log via update_finished
+            # before re-raising. Do NOT write another FAILED log here —
+            # that would create a duplicate for the same run_id.
+            # Just continue to the next day (fail-soft contract).
+            continue
+
+    return 1 if any_failed else 0
 
 
 # ---------------------------------------------------------------------------

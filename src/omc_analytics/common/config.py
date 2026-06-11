@@ -73,6 +73,17 @@ class RunContext:
     rate_limit_policy: RetryPolicy | None = field(default=None, repr=False)
     transient_401_policy: RetryPolicy | None = field(default=None, repr=False)
     report_poll_policy: RetryPolicy | None = field(default=None, repr=False)
+    # Backfill configuration
+    backfill: bool = False
+    backfill_days: int = 30
+
+    def __post_init__(self) -> None:
+        """Validate backfill_days range when backfill is enabled."""
+        if self.backfill and not 1 <= self.backfill_days <= 90:
+            raise ValueError(
+                f"backfill_days must be between 1 and 90 when backfill=True, "
+                f"got {self.backfill_days}"
+            )
 
 
 _ENV_BUCKET_MAP: dict[str, str] = {
