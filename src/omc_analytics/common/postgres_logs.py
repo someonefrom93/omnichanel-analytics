@@ -59,9 +59,16 @@ class PostgresLogs:
     def __init__(
         self,
         connection_factory: Callable[[], psycopg2.extensions.connection],
-        min_conn: int = 1,
+        min_conn: int = 0,
         max_conn: int = 5,
     ) -> None:
+        """PostgresLogs adapter with injected connection factory.
+
+        Note: min_conn defaults to 0 (not 1) because psycopg2's
+        ThreadedConnectionPool eagerly seeds `minconn` connections in __init__
+        by calling the factory with the wrong kwargs. Starting empty and
+        letting getconn() create connections lazily avoids that.
+        """
         self._factory = connection_factory
         self._pool = psycopg2.pool.ThreadedConnectionPool(
             min_conn, max_conn, connection_factory=connection_factory

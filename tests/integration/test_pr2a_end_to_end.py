@@ -114,7 +114,7 @@ def test_end_to_end_pipeline_uses_real_adapters(
     try:
         pg_container = PostgresContainer("postgres:16-alpine")
         pg_container.start()
-        pg_dsn = pg_container.get_connection_url()
+        pg_dsn = pg_container.get_connection_url(driver=None)
     except Exception as exc:
         pytest.skip(f"Docker not available or testcontainers failed: {exc}")
 
@@ -124,9 +124,9 @@ def test_end_to_end_pipeline_uses_real_adapters(
         _apply_ddl(conn)
         conn.close()
 
-        import functools
-
-        conn_factory = functools.partial(psycopg2.connect, dsn=pg_dsn)
+        def conn_factory(*args: Any, **kwargs: Any) -> Any:
+            # psycopg2 calls the factory with a positional key argument; we ignore it.
+            return psycopg2.connect(pg_dsn)
 
         # ---- Set up moto S3 ----
         with moto.mock_aws():
