@@ -2,27 +2,33 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Protocol
 
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
+# Re-export KMSSecrets and related types from the KMS-backed implementation.
+# The public import surface is: from omc_analytics.common.secrets import KMSSecrets
+# InMemorySecrets remains the no-AWS dev path.
+from omc_analytics.common.kms_secrets import (  # noqa: F401
+    BlobStore,
+    InMemoryBlobStore,
+    KMSDecryptError,
+    KMSKeyError,
+    KMSSecrets,
+    MerchantBlobCorruptError,
+)
+from omc_analytics.common.models import MerchantCredentials, MerchantNotFoundError
 
-
-class MerchantCredentials(BaseModel):
-    """Pydantic model for merchant credentials.
-
-    PR1 uses plaintext storage.  # pragma: PR2 swap to KMS-backed impl
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    merchant_id: str = Field(min_length=1, max_length=64)
-    public_api_url: AnyHttpUrl
-    client_id: str
-    client_secret_encrypted: str  # plaintext stub for PR1
-    access_token: str | None = None
-    refresh_token: str | None = None
-    expires_at: datetime | None = None  # UTC
+__all__ = [
+    "BlobStore",
+    "InMemoryBlobStore",
+    "InMemorySecrets",
+    "KMSSecrets",
+    "KMSDecryptError",
+    "KMSKeyError",
+    "MerchantBlobCorruptError",
+    "MerchantCredentials",
+    "MerchantNotFoundError",
+    "SecretsPort",
+]
 
 
 class SecretsPort(Protocol):
@@ -35,10 +41,6 @@ class SecretsPort(Protocol):
     def save(self, creds: MerchantCredentials) -> None:
         """Save credentials for a merchant."""
         ...
-
-
-class MerchantNotFoundError(LookupError):
-    """Raised when credentials for a merchant_id are not found."""
 
 
 class InMemorySecrets:
