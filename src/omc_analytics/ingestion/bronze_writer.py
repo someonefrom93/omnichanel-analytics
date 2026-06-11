@@ -6,7 +6,7 @@ which is what enables moto to work in tests.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
@@ -32,6 +32,7 @@ class BronzeWriter:
         merchant_id: str,
         endpoint: str,
         payload: bytes | str,
+        target_date: date,
         run_timestamp_utc: datetime,
     ) -> str:
         """Write a raw payload to Bronze S3.
@@ -40,7 +41,8 @@ class BronzeWriter:
             merchant_id: Merchant identifier used in the partition path.
             endpoint: One of "orders", "reports_enqueue", "reports_result".
             payload: The raw bytes or string to write.
-            run_timestamp_utc: The run timestamp used in the S3 key.
+            target_date: The order/ingestion date used for the Hive partition path.
+            run_timestamp_utc: The run timestamp used in the S3 key filename.
 
         Returns:
             The full s3://{bucket}/{key} URI.
@@ -48,7 +50,7 @@ class BronzeWriter:
         Raises:
             BronzeWriteError: If the boto3 put_object call fails.
         """
-        key = build_bronze_key(merchant_id, endpoint, run_timestamp_utc)
+        key = build_bronze_key(merchant_id, endpoint, target_date, run_timestamp_utc)
         try:
             self._s3.put_object(
                 Bucket=self._bucket,
@@ -66,6 +68,7 @@ class BronzeWriter:
         merchant_id: str,
         request_body: bytes | str,
         result_payload: bytes | str,
+        target_date: date,
         run_timestamp_utc: datetime,
     ) -> tuple[str, str]:
         """Write both the enqueue manifest and the result payload for a report job.
@@ -74,15 +77,20 @@ class BronzeWriter:
             merchant_id: Merchant identifier.
             request_body: The POST /v1/reports request body (manifest).
             result_payload: The final poll result payload.
+            target_date: The order/ingestion date used for the Hive partition path.
             run_timestamp_utc: The run timestamp used in S3 keys.
 
         Returns:
             A tuple of (manifest_uri, result_uri).
         """
         manifest_uri = self.write_raw(
-            merchant_id, "reports_enqueue", request_body, run_timestamp_utc
+            merchant_id, "reports_enqueue", request_body, target_date, run_timestamp_utc
         )
         result_uri = self.write_raw(
-            merchant_id, "reports_result", result_payload, run_timestamp_utc
+            merchant_id,
+            "reports_result",
+            result_payload,
+            target_date,
+            run_timestamp_utc,
         )
         return (manifest_uri, result_uri)

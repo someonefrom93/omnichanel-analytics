@@ -156,12 +156,20 @@ _Source: Proposal §Endpoint Inventory_
 The system MUST write to `s3://ofae-data-lakehouse-bronze-{env}/otter/merchant_id={merchant_id}/year=YYYY/month=MM/day=DD/{endpoint}-{run_timestamp}.json`.
 _Source: PRD §2.2; Proposal §Bronze writer_
 
-#### Scenario: Path contains run timestamp, not order timestamp
+**SCN-014 delta (PR2b)**: `build_bronze_key(merchant_id, endpoint, target_date, run_timestamp_utc)` — partition (`year/month/day`) is derived from `target_date` (order/ingestion date); filename timestamp suffix is derived from `run_timestamp_utc` (run instant). `target_date` is REQUIRED.
 
-- GIVEN a batch write at run time `2026-06-10T02:05:00Z` for orders dated 2026-06-09
-- WHEN the Bronze writer constructs the S3 key
-- THEN the filename part carries `2026-06-10T020500Z`, not any order-level timestamp
-- AND the partition `day=09` reflects the T-1 date
+#### Scenario: Partition path uses target_date, filename uses run_timestamp
+
+- GIVEN `target_date = date(2026,6,9)` and `run_timestamp_utc = datetime(2026,6,10,2,5,0,tzinfo=UTC)`
+- WHEN `build_bronze_key("M1", "orders", target_date, run_timestamp_utc)` is called
+- THEN the partition path is `year=2026/month=06/day=09` (from `target_date`)
+- AND the filename suffix is `orders-20260610T020500Z.json` (from `run_timestamp_utc`)
+
+#### Scenario: Re-run same target_date shares partition, distinct filename
+
+- GIVEN same `target_date=date(2026,6,9)` but `run_timestamp_utc` values of `2026-06-10T02:05:00Z` and `2026-06-10T14:30:00Z`
+- WHEN both keys are built
+- THEN both share partition `day=09`; filenames differ; distinct S3 objects coexist under the same partition
 
 #### Scenario: Raw unmodified JSON written
 

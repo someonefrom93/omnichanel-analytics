@@ -187,6 +187,7 @@ def run_bronze_impl(run_ctx: RunContext) -> None:
         store_tz = ZoneInfo(store_tz_str)
         now_utc = datetime.now(UTC)
         t1_start, t1_end = compute_t1_window(store_tz, now_utc)
+        target_date = t1_start.date()
 
         # ── Step 4: Fetch and write orders ────────────────────────────────
         assert otter is not None
@@ -201,6 +202,7 @@ def run_bronze_impl(run_ctx: RunContext) -> None:
             merchant_id=merchant_id,
             endpoint="orders",
             payload=json.dumps(orders_data),
+            target_date=target_date,
             run_timestamp_utc=run_ctx.run_timestamp_utc,
         )
 
@@ -217,6 +219,7 @@ def run_bronze_impl(run_ctx: RunContext) -> None:
             merchant_id=merchant_id,
             endpoint="reports_enqueue",
             payload=json.dumps(enqueue_payload),
+            target_date=target_date,
             run_timestamp_utc=run_ctx.run_timestamp_utc,
         )
 
@@ -232,6 +235,7 @@ def run_bronze_impl(run_ctx: RunContext) -> None:
             merchant_id=merchant_id,
             endpoint="reports_result",
             payload=json.dumps(result_data),
+            target_date=target_date,
             run_timestamp_utc=run_ctx.run_timestamp_utc,
         )
 

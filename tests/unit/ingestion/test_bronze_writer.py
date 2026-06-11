@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from unittest import mock
 
 import pytest
@@ -46,8 +46,12 @@ class TestBronzeWriter:
             "omc_analytics.ingestion.bronze_writer.build_bronze_key",
             wraps=build_bronze_key,
         ) as mock_key:
-            bronze_writer.write_raw(merchant_id, endpoint, payload, run_ts)
-            mock_key.assert_called_once_with(merchant_id, endpoint, run_ts)
+            bronze_writer.write_raw(
+                merchant_id, endpoint, payload, run_ts.date(), run_ts
+            )
+            mock_key.assert_called_once_with(
+                merchant_id, endpoint, run_ts.date(), run_ts
+            )
 
     def test_write_raw_put_object_called_with_expected_args(
         self, bronze_writer, run_ts
@@ -58,11 +62,15 @@ class TestBronzeWriter:
         payload = b'{"test": "data"}'
 
         with mock.patch.object(bronze_writer._s3, "put_object") as mock_put:
-            bronze_writer.write_raw(merchant_id, endpoint, payload, run_ts)
+            bronze_writer.write_raw(
+                merchant_id, endpoint, payload, run_ts.date(), run_ts
+            )
             mock_put.assert_called_once()
             call_kwargs = mock_put.call_args.kwargs
             assert call_kwargs["Bucket"] == "test-bucket"
-            assert call_kwargs["Key"] == build_bronze_key(merchant_id, endpoint, run_ts)
+            assert call_kwargs["Key"] == build_bronze_key(
+                merchant_id, endpoint, run_ts.date(), run_ts
+            )
             assert call_kwargs["Body"] == payload
 
     def test_write_raw_returns_s3_uri(self, bronze_writer, run_ts):
@@ -71,9 +79,11 @@ class TestBronzeWriter:
         endpoint = "orders"
         payload = b'{"test": "data"}'
 
-        uri = bronze_writer.write_raw(merchant_id, endpoint, payload, run_ts)
+        uri = bronze_writer.write_raw(
+            merchant_id, endpoint, payload, run_ts.date(), run_ts
+        )
 
-        expected_key = build_bronze_key(merchant_id, endpoint, run_ts)
+        expected_key = build_bronze_key(merchant_id, endpoint, run_ts.date(), run_ts)
         assert uri == f"s3://test-bucket/{expected_key}"
 
     def test_write_raw_serializes_str_payload_to_bytes(self, bronze_writer, run_ts):
@@ -83,7 +93,9 @@ class TestBronzeWriter:
         payload = '{"test": "string_payload"}'
 
         with mock.patch.object(bronze_writer._s3, "put_object") as mock_put:
-            bronze_writer.write_raw(merchant_id, endpoint, payload, run_ts)
+            bronze_writer.write_raw(
+                merchant_id, endpoint, payload, run_ts.date(), run_ts
+            )
             body = mock_put.call_args.kwargs["Body"]
             # boto3 put_object accepts str, but we pin the serialization
             assert isinstance(body, (bytes, str))
@@ -98,7 +110,7 @@ class TestBronzeWriter:
             bronze_writer, "write_raw", wraps=bronze_writer.write_raw
         ) as mock_raw:
             manifest_uri, result_uri = bronze_writer.write_report_pair(
-                merchant_id, request_body, result_payload, run_ts
+                merchant_id, request_body, result_payload, run_ts.date(), run_ts
             )
 
             assert mock_raw.call_count == 2
@@ -106,12 +118,14 @@ class TestBronzeWriter:
                 merchant_id,
                 "reports_enqueue",
                 request_body,
+                run_ts.date(),
                 run_ts,
             )
             assert mock_raw.call_args_list[1].args == (
                 merchant_id,
                 "reports_result",
                 result_payload,
+                run_ts.date(),
                 run_ts,
             )
             # URIs are returned in order
@@ -125,7 +139,7 @@ class TestBronzeWriter:
         result_payload = b'{"report": "result"}'
 
         manifest_uri, result_uri = bronze_writer.write_report_pair(
-            merchant_id, request_body, result_payload, run_ts
+            merchant_id, request_body, result_payload, run_ts.date(), run_ts
         )
 
         assert isinstance(manifest_uri, str)
@@ -155,4 +169,26 @@ class TestBronzeWriter:
                 BronzeWriteError,
                 match="Failed to write",
             ):
-                bronze_writer.write_raw(merchant_id, endpoint, payload, run_ts)
+                bronze_writer.write_raw(
+                    merchant_id, endpoint, payload, run_ts.date(), run_ts
+                )
+
+    def test_write_raw_forwards_target_date_to_build_bronze_key(
+        self, bronze_writer
+    ) -> None:
+        """write_raw must forward target_date to build_bronze_key for S3 key construction."""
+        merchant_id = "M1"
+        endpoint = "orders"
+        payload = b"{}"
+        target_date = date(2026, 5, 1)
+        run_ts = datetime(2026, 6, 10, 12, 0, 0, tzinfo=UTC)
+
+        with mock.patch.object(bronze_writer._s3, "put_object") as mock_put:
+            bronze_writer.write_raw(merchant_id, endpoint, payload, target_date, run_ts)
+            call_kwargs = mock_put.call_args.kwargs
+            # Key must contain partition from target_date (May=05, day=01), NOT from run_ts (June=06)
+            assert "year=2026" in call_kwargs["Key"]
+            assert "month=05" in call_kwargs["Key"]
+            assert "day=01" in call_kwargs["Key"]
+            # Filename timestamp still from run_timestamp_utc
+            assert "20260610T120000Z" in call_kwargs["Key"]
