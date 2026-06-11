@@ -185,7 +185,15 @@ def test_load_raises_blob_corrupt_on_wrong_merchant_id_aad(kms_key):
 
 
 def test_save_zeroizes_plaintext_data_key(kms_key):
-    """After save, the plaintext key used for encryption is zeroized before dropping."""
+    """After save returns, the plaintext key bytearray used for encryption
+    must be all zeros in place. AESGCM copies the key at construction time,
+    so zeroization must happen AFTER the AESGCM(...) call and BEFORE the
+    bytearray reference is dropped.
+
+    The spy captures the SAME bytearray object (by identity) that the impl
+    passed to AESGCM. After save() returns, that same bytearray should be
+    zeroized in place.
+    """
     secrets = _make_kms_secrets(kms_key)
     creds = MerchantCredentials(
         merchant_id="M1",
@@ -194,36 +202,32 @@ def test_save_zeroizes_plaintext_data_key(kms_key):
         client_secret_encrypted="secret",
     )
 
-    # Spy: capture the key passed to AESGCM at the moment of construction.
-    # We wrap the key in a bytearray so we can inspect it after save() returns.
-    # The zeroize implementation uses bytearray for in-place overwrite.
-    captured_key_ref: list[bytearray] = []
+    # Hold a strong reference to the bytearray the impl passes to AESGCM.
+    # We capture by identity (not by copy) so that if the impl zeroizes the
+    # bytearray in place, our reference sees the zeros.
+    captured_bytearray_ref: list[bytearray] = []
 
     original_aesgcm_init = AESGCM.__init__
 
     def spy_aesgcm_init(self, key):
-        # Capture a live view of the key (as bytearray) at init time.
-        # We make a copy so we can inspect it after save() completes.
+        # Only capture if the impl actually passed a bytearray (our impl does).
         if isinstance(key, bytearray):
-            captured_key_ref.append(bytearray(key))
-        else:
-            captured_key_ref.append(bytearray(key))
+            # Append the SAME object reference. Do NOT copy.
+            captured_bytearray_ref.append(key)
         original_aesgcm_init(self, key)
 
     with mock.patch.object(AESGCM, "__init__", spy_aesgcm_init):
         secrets.save(creds)
 
-    assert len(captured_key_ref) == 1, "AESGCM should have been instantiated once"
-    # The captured key is a live view — if zeroization happened before AESGCM init,
-    # it will already be zeros. If zeroization happened after, it will be the real key.
-    # The implementation zeroizes AFTER AESGCM construction, so the captured key has real bytes.
-    # For this test to pass, the implementation must zeroize BEFORE passing to AESGCM.
-    key_view = captured_key_ref[0]
-    # Assert the key was zeroized at the point of AESGCM construction.
-    # This requires the implementation to zeroize the bytearray BEFORE passing it to AESGCM.
-    assert key_view == bytearray(b"\x00" * 32), (
-        f"Expected plaintext key to be zeroized before AESGCM construction, "
-        f"got {bytes(key_view)!r}"
+    assert len(captured_bytearray_ref) == 1, (
+        "AESGCM should have been instantiated once with a bytearray key"
+    )
+    # The impl must zeroize the bytearray in place after the AESGCM construction.
+    # Since we hold a strong reference to the same object, we observe the zeros.
+    plaintext_key_ref = captured_bytearray_ref[0]
+    assert bytes(plaintext_key_ref) == b"\x00" * 32, (
+        f"Expected plaintext key bytearray to be zeroized in place, "
+        f"got {bytes(plaintext_key_ref)!r}"
     )
 
 
