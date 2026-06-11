@@ -114,6 +114,10 @@ ignore_missing_imports = true
 module = "urllib3.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "psycopg2.*"
+ignore_missing_imports = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/omc_analytics"]
 
@@ -121,3 +125,8 @@ packages = ["src/omc_analytics"]
 line-length = 88
 target-version = ["py312"]
 include = '\.pyi?$'
+
+[dependency-groups]
+dev = [
+    "pytest-postgresql>=8.1.0",
+]

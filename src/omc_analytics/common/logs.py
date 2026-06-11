@@ -1,4 +1,9 @@
-"""LogsPort Protocol and InMemoryLogs stub — PR1 in-memory implementation."""
+"""LogsPort Protocol and InMemoryLogs stub — PR1 in-memory implementation.
+
+Re-exports (for convenience):
+    PostgresLogs, PostgresLogsError (from postgres_logs)
+    SQLiteLogs (from sqlite_logs)
+"""
 
 from __future__ import annotations
 
@@ -7,6 +12,22 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from pydantic import BaseModel
+
+
+def __getattr__(name: str) -> type:
+    if name == "PostgresLogs":
+        from omc_analytics.common.postgres_logs import PostgresLogs
+
+        return PostgresLogs
+    if name == "PostgresLogsError":
+        from omc_analytics.common.postgres_logs import PostgresLogsError
+
+        return PostgresLogsError
+    if name == "SQLiteLogs":
+        from omc_analytics.common.sqlite_logs import SQLiteLogs
+
+        return SQLiteLogs
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class RunLog(BaseModel):
