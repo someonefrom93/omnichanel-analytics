@@ -68,7 +68,7 @@ class TestPyprojectToml:
         required_dev = {
             "pytest",
             "responses",
-            "moto",
+            "moto[s3,kms]",
             "freezegun",
             "ruff",
             "mypy",
