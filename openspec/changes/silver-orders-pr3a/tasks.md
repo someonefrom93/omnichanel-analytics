@@ -24,7 +24,7 @@ Chain strategy: pending
 
 ## Phase 2: dbt Project Skeleton + Profiles
 
-- [ ] 2.1 **Create dbt_project.yml + profiles.yml** — `dbt_project.yml`: name=`ofae_analytics`, profile=`ofae_analytics`, model-paths, incremental defaults, Parquet format, vars block. `profiles.yml`: `dev` target (local DuckDB + mirror path) and `prod` target (S3 httpfs + secrets from env). Files: `dbt_project/dbt_project.yml`, `dbt_project/profiles.yml`. Design: §dbt Project Layout, §profiles.yml. *Done when: `dbt debug --target dev` succeeds.*
+- [x] 2.1 **Create dbt_project.yml + profiles.yml** — `dbt_project.yml`: name=`ofae_analytics`, profile=`ofae_analytics`, model-paths, incremental defaults, Parquet format, vars block. `profiles.yml`: `dev` target (local DuckDB + mirror path) and `prod` target (S3 httpfs + secrets from env). Files: `dbt_project/dbt_project.yml`, `dbt_project/profiles.yml`. Design: §dbt Project Layout, §profiles.yml. *Done when: `dbt debug --target dev` succeeds.*
 
 ## Phase 3: Source Definition
 

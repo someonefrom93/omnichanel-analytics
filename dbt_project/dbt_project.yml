@@ -1,0 +1,40 @@
+name: 'ofae_analytics'
+version: '1.0.0'
+config-version: 2
+
+# This setting points to the profile name in profiles.yml
+profile: 'ofae_analytics'
+
+# Path configurations (relative to dbt_project/)
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  # Default values; can be overridden via --vars or DBT_VARS
+  silver_schema: 'silver'
+  bronze_schema: 'bronze'
+  bronze_orders_path: 's3://ofae-data-lakehouse-bronze-{env}/otter/merchant_id=*/*/*/*/orders-*.json'
+  bronze_local_mirror: '{dbt_target_path}/bronze_mirror'
+  silver_output_format: 'parquet'
+  silver_compression: 'snappy'
+
+# Model configurations
+models:
+  ofae_analytics:
+    silver:
+      +materialized: incremental
+      +incremental_strategy: merge
+      +merge_update_columns: []   # default: merge on unique_key only
+      +on_schema_change: append_new_columns
+      +file_format: parquet
+      # partition_by omitted — DuckDB-dbt 1.10.1 syntax uncertain.
+      # May use: partition_by: [{field: "target_date", data_type: "date"}]
+      # Will revisit in follow-up if DuckDB supports it natively.

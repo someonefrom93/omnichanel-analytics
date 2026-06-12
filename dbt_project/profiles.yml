@@ -1,0 +1,20 @@
+ofae_analytics:
+  target: "{{ env_var('OMCAE_DBT_TARGET', 'dev') }}"
+  outputs:
+    # Dev target: local file:// mirror of the Bronze S3 bucket
+    dev:
+      type: duckdb
+      path: "{{ env_var('OMCAE_DUCKDB_PATH', 'dbt_project/dev.duckdb') }}"
+      threads: 4
+      # Extensions and secrets are configured at runtime via setup_duckdb_secrets.sql
+      # (added in batch 3)
+
+    # Prod target: S3 direct via DuckDB httpfs
+    prod:
+      type: duckdb
+      path: "{{ env_var('OMCAE_DUCKDB_PATH', 'dbt_project/prod.duckdb') }}"
+      threads: 8
+      # httpfs extension + S3 credentials are set at connection time
+      # via DBT_DUCKDB_HTTPFS_INIT_SQL env var or setup script.
+      # NOTE: dbt-duckdb 1.10.1 does not have a native 'plugins' field in profiles.
+      # The httpfs extension is loaded via the DuckDB connection init SQL.

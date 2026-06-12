@@ -194,7 +194,8 @@ class TestBuildBronzeKeyTargetDateContract:
     ) -> None:
         """target_date >1 day in future logs a warning but does not raise."""
         import logging
-        from datetime import UTC, datetime as _dt, timedelta
+        from datetime import UTC, timedelta
+        from datetime import datetime as _dt
 
         # Use a run_timestamp_utc anchored to "today" so the future-date check
         # is deterministic regardless of when the test runs.

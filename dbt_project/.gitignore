@@ -1,0 +1,14 @@
+# dbt build artifacts
+target/
+dbt_packages/
+logs/
+
+# Local DuckDB files (dev environment)
+*.duckdb
+*.duckdb.wal
+
+# Local Bronze mirror (dev environment)
+bronze_mirror/
+
+# dbt auto-generated user id file
+.user.yml
