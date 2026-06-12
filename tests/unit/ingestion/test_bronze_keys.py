@@ -194,10 +194,15 @@ class TestBuildBronzeKeyTargetDateContract:
     ) -> None:
         """target_date >1 day in future logs a warning but does not raise."""
         import logging
+        from datetime import UTC, datetime as _dt, timedelta
 
-        future_date = date(2026, 6, 13)  # 2 days past today (2026-06-11)
-        run_ts = datetime(2026, 6, 11, 12, 0, 0, tzinfo=UTC)
-        key = build_bronze_key("merchant_001", "orders", future_date, run_ts)
+        # Use a run_timestamp_utc anchored to "today" so the future-date check
+        # is deterministic regardless of when the test runs.
+        now_utc = _dt.now(UTC)
+        future_date = (now_utc + timedelta(days=2)).date()
+        run_ts = now_utc
+        with caplog.at_level(logging.WARNING):
+            key = build_bronze_key("merchant_001", "orders", future_date, run_ts)
         # Still produces a valid key
         assert key.startswith("otter/merchant_id=merchant_001/")
         # Warning was logged
