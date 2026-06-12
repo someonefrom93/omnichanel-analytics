@@ -162,12 +162,8 @@ def test_salted_pii_columns_exist(tmp_path: Path) -> None:
             ]
             assert "customer_name_hash" in columns, "raw name hash missing"
             assert "customer_phone_hash" in columns, "raw phone hash missing"
-            assert (
-                "customer_name_hash_salted" in columns
-            ), "salted name hash missing"
-            assert (
-                "customer_phone_hash_salted" in columns
-            ), "salted phone hash missing"
+            assert "customer_name_hash_salted" in columns, "salted name hash missing"
+            assert "customer_phone_hash_salted" in columns, "salted phone hash missing"
         finally:
             con.close()
 
@@ -229,19 +225,15 @@ def test_salted_hashes_deterministic_across_runs(tmp_path: Path) -> None:
         ).fetchall()
         con.close()
 
-        assert len(first_hashes) == len(second_hashes), (
-            f"Row count mismatch: {len(first_hashes)} vs {len(second_hashes)}"
-        )
+        assert len(first_hashes) == len(
+            second_hashes
+        ), f"Row count mismatch: {len(first_hashes)} vs {len(second_hashes)}"
         for (oid1, nh1, ph1), (oid2, nh2, ph2) in zip(
             first_hashes, second_hashes, strict=True
         ):
             assert oid1 == oid2, f"Order mismatch: {oid1} vs {oid2}"
-            assert nh1 == nh2, (
-                f"Salted name hash changed for {oid1}: {nh1} vs {nh2}"
-            )
-            assert ph1 == ph2, (
-                f"Salted phone hash changed for {oid1}: {ph1} vs {ph2}"
-            )
+            assert nh1 == nh2, f"Salted name hash changed for {oid1}: {nh1} vs {nh2}"
+            assert ph1 == ph2, f"Salted phone hash changed for {oid1}: {ph1} vs {ph2}"
 
 
 @pytest.mark.integration

@@ -54,10 +54,7 @@ class GoldReader:
             ).fetchall()
         except duckdb.CatalogException:
             return []
-        return [
-            {"line_item_sku": row[0], "line_item_name": row[1]}
-            for row in rows
-        ]
+        return [{"line_item_sku": row[0], "line_item_name": row[1]} for row in rows]
 
     def list_merchant_cogs(self, *, merchant_id: str) -> list[dict[str, Any]]:
         """Return all COGS entries for a merchant from merchant_cogs table.
@@ -92,9 +89,7 @@ class GoldReader:
 
     # -- PR5b: financial sales read ---------------------------------------------
 
-    def list_fact_financial_sales(
-        self, *, merchant_id: str
-    ) -> list[dict[str, Any]]:
+    def list_fact_financial_sales(self, *, merchant_id: str) -> list[dict[str, Any]]:
         """Return all fact_financial_sales rows for a merchant.
 
         Args:

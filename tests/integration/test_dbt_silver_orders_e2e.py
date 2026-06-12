@@ -347,9 +347,7 @@ ofae_analytics:
         assert success1, f"First dbt build failed: {exc1}"
 
         con = duckdb.connect(str(duckdb_path))
-        first_count = con.execute(
-            "SELECT COUNT(*) FROM silver_orders"
-        ).fetchone()[0]
+        first_count = con.execute("SELECT COUNT(*) FROM silver_orders").fetchone()[0]
         con.close()
 
         # Second run — same database, same seed
@@ -359,9 +357,7 @@ ofae_analytics:
         assert success2, f"Second dbt build failed: {exc2}"
 
         con = duckdb.connect(str(duckdb_path))
-        second_count = con.execute(
-            "SELECT COUNT(*) FROM silver_orders"
-        ).fetchone()[0]
+        second_count = con.execute("SELECT COUNT(*) FROM silver_orders").fetchone()[0]
         con.close()
 
         assert first_count == second_count, (

@@ -30,9 +30,7 @@ class CogsWriter:
         min_conn: int = 0,
         max_conn: int = 5,
     ) -> None:
-        self._pool = psycopg2.pool.ThreadedConnectionPool(
-            min_conn, max_conn, dsn
-        )
+        self._pool = psycopg2.pool.ThreadedConnectionPool(min_conn, max_conn, dsn)
 
     @contextmanager
     def _acquire(self) -> Generator[psycopg2.extensions.connection, None, None]:
@@ -63,7 +61,13 @@ class CogsWriter:
                 "DO UPDATE SET recipe_cost = EXCLUDED.recipe_cost, "
                 "packaging_cost = EXCLUDED.packaging_cost, "
                 "updated_at = EXCLUDED.updated_at",
-                (merchant_id, line_item_sku, recipe_cost, packaging_cost, datetime.now(UTC)),
+                (
+                    merchant_id,
+                    line_item_sku,
+                    recipe_cost,
+                    packaging_cost,
+                    datetime.now(UTC),
+                ),
             )
             conn.commit()
 

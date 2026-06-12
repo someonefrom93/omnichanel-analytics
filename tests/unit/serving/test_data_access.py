@@ -11,6 +11,7 @@ class TestGoldReaderTenantFence:
         WHEN GoldReader() called without merchant_id
         THEN TypeError is raised."""
         import pytest
+
         from omc_analytics.serving.data_access import GoldReader
 
         with pytest.raises(TypeError):
@@ -21,6 +22,7 @@ class TestGoldReaderTenantFence:
         WHEN list_menu_items called without merchant_id arg
         THEN TypeError is raised."""
         import pytest
+
         from omc_analytics.serving.data_access import GoldReader
 
         reader = GoldReader(merchant_id="store_001")
@@ -32,6 +34,7 @@ class TestGoldReaderTenantFence:
         WHEN list_merchant_cogs called without merchant_id arg
         THEN TypeError is raised."""
         import pytest
+
         from omc_analytics.serving.data_access import GoldReader
 
         reader = GoldReader(merchant_id="store_001")
@@ -47,10 +50,12 @@ class TestGoldReaderMerchantScoping:
         WHEN reader.list_menu_items(merchant_id="store_001") called
         THEN only store_001 rows are returned."""
         import duckdb
+
         from omc_analytics.serving.data_access import GoldReader
 
         conn = duckdb.connect(":memory:")
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE dim_menu_catalog AS
             SELECT 'store_001' AS merchant_id, 'BURGER' AS line_item_sku,
                    'Classic Burger' AS line_item_name
@@ -58,7 +63,8 @@ class TestGoldReaderMerchantScoping:
             SELECT 'store_001', 'FRIES', 'Medium Fries'
             UNION ALL
             SELECT 'store_002', 'PIZZA', 'Margherita'
-        """)
+        """
+        )
 
         reader = GoldReader(merchant_id="store_001")
         # Override internal connection for testing
@@ -74,16 +80,19 @@ class TestGoldReaderMerchantScoping:
         WHEN list_menu_items called
         THEN empty list returned (not None, not error)."""
         import duckdb
+
         from omc_analytics.serving.data_access import GoldReader
 
         conn = duckdb.connect(":memory:")
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE dim_menu_catalog (
                 merchant_id TEXT,
                 line_item_sku TEXT,
                 line_item_name TEXT
             )
-        """)
+        """
+        )
 
         reader = GoldReader(merchant_id="store_001")
         reader._conn = conn  # type: ignore[attr-defined]
@@ -96,16 +105,19 @@ class TestGoldReaderMerchantScoping:
         WHEN reader.list_merchant_cogs(merchant_id="store_001") called
         THEN only store_001 rows are returned."""
         import duckdb
+
         from omc_analytics.serving.data_access import GoldReader
 
         conn = duckdb.connect(":memory:")
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE merchant_cogs AS
             SELECT 'store_001' AS merchant_id, 'BURGER' AS line_item_sku,
                    3.5 AS recipe_cost, 0.8 AS packaging_cost
             UNION ALL
             SELECT 'store_002', 'PIZZA', 5.0, 1.2
-        """)
+        """
+        )
 
         reader = GoldReader(merchant_id="store_001")
         reader._conn = conn  # type: ignore[attr-defined]
@@ -123,6 +135,7 @@ class TestGoldReaderListFactFinancialSales:
         WHEN list_fact_financial_sales called without merchant_id arg
         THEN TypeError is raised."""
         import pytest
+
         from omc_analytics.serving.data_access import GoldReader
 
         reader = GoldReader(merchant_id="store_001")
@@ -134,10 +147,12 @@ class TestGoldReaderListFactFinancialSales:
         WHEN reader.list_fact_financial_sales(merchant_id="store_001") called
         THEN only store_001 rows returned."""
         import duckdb
+
         from omc_analytics.serving.data_access import GoldReader
 
         conn = duckdb.connect(":memory:")
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE fact_financial_sales AS
             SELECT 'store_001' AS merchant_id, 'ORD-001' AS order_id,
                    'UberEats' AS source_marketplace, 'BURGER' AS line_item_sku,
@@ -150,7 +165,8 @@ class TestGoldReaderListFactFinancialSales:
             UNION ALL
             SELECT 'store_002', 'ORD-003', 'UberEats', 'PIZZA',
                    30.0, 25.0, 20.0, 5.0, 0.0, ''
-        """)
+        """
+        )
 
         reader = GoldReader(merchant_id="store_001")
         reader._conn = conn  # type: ignore[attr-defined]
@@ -165,6 +181,7 @@ class TestGoldReaderListFactFinancialSales:
         WHEN list_fact_financial_sales called
         THEN empty list returned without error."""
         import duckdb
+
         from omc_analytics.serving.data_access import GoldReader
 
         conn = duckdb.connect(":memory:")
@@ -179,17 +196,20 @@ class TestGoldReaderListFactFinancialSales:
         WHEN list_fact_financial_sales(merchant_id="store_002") called
         THEN empty list returned."""
         import duckdb
+
         from omc_analytics.serving.data_access import GoldReader
 
         conn = duckdb.connect(":memory:")
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE fact_financial_sales AS
             SELECT 'store_001' AS merchant_id, 'ORD-001' AS order_id,
                    'UberEats' AS source_marketplace, 'BURGER' AS line_item_sku,
                    25.0 AS gross_order_value, 20.0 AS net_payout_amount,
                    15.0 AS true_net_payout_margin, 5.0 AS estimated_marketplace_commission,
                    0.0 AS settlement_variance_amount, '' AS variance_reason
-        """)
+        """
+        )
 
         reader = GoldReader(merchant_id="store_002")
         reader._conn = conn  # type: ignore[attr-defined]

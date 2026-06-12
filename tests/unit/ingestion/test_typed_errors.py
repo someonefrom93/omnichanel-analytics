@@ -47,8 +47,12 @@ def client(secrets):
         secrets=secrets,
         oauth_refresher=oauth,
         clock=clock,
-        rate_limit_policy=RetryPolicy(max_retries=3, base_seconds=0.01, cap_seconds=0.1, jitter=False),
-        transient_401_policy=RetryPolicy(max_retries=1, base_seconds=0.01, cap_seconds=0.1, jitter=False),
+        rate_limit_policy=RetryPolicy(
+            max_retries=3, base_seconds=0.01, cap_seconds=0.1, jitter=False
+        ),
+        transient_401_policy=RetryPolicy(
+            max_retries=1, base_seconds=0.01, cap_seconds=0.1, jitter=False
+        ),
         run_id=uuid4(),
     )
 
@@ -58,14 +62,37 @@ class TestTier1AuthErrorOn401:
 
     def test_three_consecutive_401s_raise_tier1(self, client, secrets):
         creds = secrets.load("merchant_001")
-        secrets.save(creds.model_copy(update={"expires_at": datetime.now(UTC) + timedelta(minutes=1)}))
+        secrets.save(
+            creds.model_copy(
+                update={"expires_at": datetime.now(UTC) + timedelta(minutes=1)}
+            )
+        )
 
         with responses.RequestsMock() as rs:
-            rs.add(responses.GET, "https://api.otter.dev/v1/orders", status=401, body="first")
-            rs.add(responses.GET, "https://api.otter.dev/v1/orders", status=401, body="second")
-            rs.add(responses.GET, "https://api.otter.dev/v1/orders", status=401, body="third")
-            rs.add(responses.POST, "https://api.otter.dev/v1/auth/token",
-                    json={"access_token": "t", "expires_in": 3600, "token_type": "Bearer"}, status=200)
+            rs.add(
+                responses.GET,
+                "https://api.otter.dev/v1/orders",
+                status=401,
+                body="first",
+            )
+            rs.add(
+                responses.GET,
+                "https://api.otter.dev/v1/orders",
+                status=401,
+                body="second",
+            )
+            rs.add(
+                responses.GET,
+                "https://api.otter.dev/v1/orders",
+                status=401,
+                body="third",
+            )
+            rs.add(
+                responses.POST,
+                "https://api.otter.dev/v1/auth/token",
+                json={"access_token": "t", "expires_in": 3600, "token_type": "Bearer"},
+                status=200,
+            )
 
             start = datetime(2026, 1, 1, tzinfo=UTC)
             end = datetime(2026, 1, 2, tzinfo=UTC)
@@ -82,7 +109,12 @@ class TestTier2LatencyErrorOnBackoffExhaustion:
     def test_429_exhaustion_raises_tier2(self, client):
         with responses.RequestsMock() as rs:
             for _ in range(4):
-                rs.add(responses.GET, "https://api.otter.dev/v1/orders", status=429, body="")
+                rs.add(
+                    responses.GET,
+                    "https://api.otter.dev/v1/orders",
+                    status=429,
+                    body="",
+                )
 
             start = datetime(2026, 1, 1, tzinfo=UTC)
             end = datetime(2026, 1, 2, tzinfo=UTC)
@@ -98,7 +130,12 @@ class TestTier2LatencyErrorOn5xx:
 
     def test_502_raises_tier2(self, client):
         with responses.RequestsMock() as rs:
-            rs.add(responses.GET, "https://api.otter.dev/v1/orders", status=502, body="Bad Gateway")
+            rs.add(
+                responses.GET,
+                "https://api.otter.dev/v1/orders",
+                status=502,
+                body="Bad Gateway",
+            )
 
             start = datetime(2026, 1, 1, tzinfo=UTC)
             end = datetime(2026, 1, 2, tzinfo=UTC)
@@ -110,7 +147,12 @@ class TestTier2LatencyErrorOn5xx:
 
     def test_503_raises_tier2(self, client):
         with responses.RequestsMock() as rs:
-            rs.add(responses.GET, "https://api.otter.dev/v1/orders", status=503, body="Service Unavailable")
+            rs.add(
+                responses.GET,
+                "https://api.otter.dev/v1/orders",
+                status=503,
+                body="Service Unavailable",
+            )
 
             start = datetime(2026, 1, 1, tzinfo=UTC)
             end = datetime(2026, 1, 2, tzinfo=UTC)

@@ -6,7 +6,6 @@ import psycopg2
 import pytest
 from testcontainers.postgres import PostgresContainer  # type: ignore[import-untyped]
 
-
 # ---------------------------------------------------------------------------
 # CogsWriter import — will fail until we create the module (RED)
 # ---------------------------------------------------------------------------
@@ -32,7 +31,8 @@ def setup_table(dsn: str):
     """Create the merchant_cogs table before each test."""
     conn = psycopg2.connect(dsn)
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS merchant_cogs (
             id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             merchant_id     TEXT NOT NULL,
@@ -42,7 +42,8 @@ def setup_table(dsn: str):
             updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
             UNIQUE (merchant_id, line_item_sku)
         )
-    """)
+    """
+    )
     conn.commit()
     cursor.close()
     conn.close()

@@ -9,11 +9,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 from streamlit.testing.v1 import AppTest  # type: ignore[import-untyped]
 
 # Path to the pages directory
-PAGES_DIR = Path(__file__).parent.parent.parent.parent / "src" / "omc_analytics" / "serving"
+PAGES_DIR = (
+    Path(__file__).parent.parent.parent.parent / "src" / "omc_analytics" / "serving"
+)
 
 
 class TestCogsEditorApp:

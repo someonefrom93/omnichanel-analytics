@@ -13,8 +13,6 @@ import responses
 from omc_analytics.common.secrets import InMemorySecrets, MerchantCredentials
 from omc_analytics.ingestion.backoff import RetryPolicy
 from omc_analytics.ingestion.errors import (
-    BackoffExhaustedError,
-    OtterAPIError,
     ReportJobCancelledError,
     ReportJobFailedError,
     Tier1AuthError,

@@ -41,7 +41,7 @@ def _adapt_postgres_to_sqlite(sql: str) -> str:
                         i += 1
                     else:
                         i += 1
-                rest = line[i + 1:].lstrip()
+                rest = line[i + 1 :].lstrip()
                 if rest.startswith(","):
                     line = line[:idx].rstrip() + ","
                 else:
@@ -55,7 +55,10 @@ def _adapt_postgres_to_sqlite(sql: str) -> str:
 def _ddl_003_path() -> Path:
     return (
         Path(__file__).parent.parent.parent.parent
-        / "src" / "omc_analytics" / "common" / "migrations"
+        / "src"
+        / "omc_analytics"
+        / "common"
+        / "migrations"
         / "003_create_engineering_alerts.sql"
     )
 
@@ -88,8 +91,15 @@ class TestDDL003:
         cursor = conn.execute("PRAGMA table_info(engineering_alerts)")
         columns = {row[1]: row[2] for row in cursor.fetchall()}
         assert len(columns) == 7
-        for name in ("id", "source", "severity", "error_class",
-                     "error_message", "stack_trace", "created_at"):
+        for name in (
+            "id",
+            "source",
+            "severity",
+            "error_class",
+            "error_message",
+            "stack_trace",
+            "created_at",
+        ):
             assert name in columns
 
     def test_ddl_idempotent(self):
@@ -105,7 +115,8 @@ class TestDDL003:
             "AND tbl_name='engineering_alerts'"
         )
         indexes = [
-            row[0] for row in cursor.fetchall()
+            row[0]
+            for row in cursor.fetchall()
             if not row[0].startswith("sqlite_autoindex_")
         ]
         assert len(indexes) == 1
@@ -123,8 +134,10 @@ class TestPostgresAlertsIntegration:
     @pytest.fixture(scope="class")
     def pg_url(self):
         """Start a PostgreSQL container, apply DDL 003, return connection URL."""
-        from testcontainers.postgres import PostgresContainer  # type: ignore[import-untyped]
         import psycopg2
+        from testcontainers.postgres import (
+            PostgresContainer,  # type: ignore[import-untyped]
+        )
 
         container = PostgresContainer("postgres:14")
         container.start()
@@ -144,7 +157,9 @@ class TestPostgresAlertsIntegration:
     def alerts(self, pg_url):
         """Build PostgresAlerts with connection factory."""
         import functools
+
         import psycopg2
+
         from omc_analytics.common.postgres_alerts import PostgresAlerts
 
         factory = functools.partial(psycopg2.connect, pg_url)

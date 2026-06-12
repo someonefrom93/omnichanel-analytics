@@ -219,36 +219,47 @@ ofae_analytics:
         con = duckdb.connect(str(duckdb_path))
         try:
             # dim_menu_catalog: 2 unique SKUs
-            dim_count = con.execute(
-                "SELECT COUNT(*) FROM dim_menu_catalog"
-            ).fetchone()[0]
-            assert dim_count == 2, (
-                f"Expected 2 rows in dim_menu_catalog, got {dim_count}"
-            )
+            dim_count = con.execute("SELECT COUNT(*) FROM dim_menu_catalog").fetchone()[
+                0
+            ]
+            assert (
+                dim_count == 2
+            ), f"Expected 2 rows in dim_menu_catalog, got {dim_count}"
 
             dim_cols = [
                 row[0] for row in con.execute("DESCRIBE dim_menu_catalog").fetchall()
             ]
-            for col in ("merchant_id", "line_item_sku", "line_item_name",
-                        "first_seen_at", "last_seen_at"):
+            for col in (
+                "merchant_id",
+                "line_item_sku",
+                "line_item_name",
+                "first_seen_at",
+                "last_seen_at",
+            ):
                 assert col in dim_cols, f"dim_menu_catalog missing column: {col}"
 
             # fact_financial_sales: 2 rows (one per line item)
             fact_count = con.execute(
                 "SELECT COUNT(*) FROM fact_financial_sales"
             ).fetchone()[0]
-            assert fact_count == 2, (
-                f"Expected 2 rows in fact_financial_sales, got {fact_count}"
-            )
+            assert (
+                fact_count == 2
+            ), f"Expected 2 rows in fact_financial_sales, got {fact_count}"
 
             fact_cols = [
                 row[0]
                 for row in con.execute("DESCRIBE fact_financial_sales").fetchall()
             ]
             for col in (
-                "merchant_id", "order_id", "source_marketplace", "line_item_sku",
-                "gross_order_value", "estimated_marketplace_commission",
-                "calculated_recipe_cogs", "packaging_cost", "true_net_payout_margin",
+                "merchant_id",
+                "order_id",
+                "source_marketplace",
+                "line_item_sku",
+                "gross_order_value",
+                "estimated_marketplace_commission",
+                "calculated_recipe_cogs",
+                "packaging_cost",
+                "true_net_payout_margin",
             ):
                 assert col in fact_cols, f"fact_financial_sales missing column: {col}"
 

@@ -6,16 +6,15 @@ GoldReader is injected via st.session_state._gold_reader for seeded data.
 
 from __future__ import annotations
 
-import duckdb
 from pathlib import Path
 
+import duckdb
 from streamlit.testing.v1 import AppTest  # type: ignore[import-untyped]
 
 from omc_analytics.serving.data_access import GoldReader
 
 PAGES_DIR = (
-    Path(__file__).parent.parent.parent.parent
-    / "src" / "omc_analytics" / "serving"
+    Path(__file__).parent.parent.parent.parent / "src" / "omc_analytics" / "serving"
 )
 
 # ---------------------------------------------------------------------------
@@ -26,7 +25,8 @@ PAGES_DIR = (
 def _seeded_reader(merchant_id: str = "store_001") -> GoldReader:
     """Return a GoldReader backed by an in-memory DuckDB with seeded data."""
     conn = duckdb.connect(":memory:")
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE fact_financial_sales AS
         SELECT 'store_001' AS merchant_id,
                'ORD-001' AS order_id,
@@ -56,7 +56,8 @@ def _seeded_reader(merchant_id: str = "store_001") -> GoldReader:
         UNION ALL
         SELECT 'store_002', 'ORD-007', 'DoorDash', 'SALAD',
                18.0, 15.0, 12.0, 4.0, 0.0, ''
-    """)
+    """
+    )
     reader = GoldReader(merchant_id=merchant_id)
     reader._conn = conn  # type: ignore[attr-defined]
     return reader
@@ -120,9 +121,9 @@ class TestDashboardApp:
 
         assert not at.exception
         bodies = {s.proto.body for s in at.subheader}
-        assert "True Omnichannel Profit Leakage Tracker" in bodies, (
-            "Chart 1 title missing"
-        )
+        assert (
+            "True Omnichannel Profit Leakage Tracker" in bodies
+        ), "Chart 1 title missing"
 
     # -- Chart 2: Menu Engineering Matrix -------------------------------------
 
@@ -153,9 +154,9 @@ class TestDashboardApp:
         assert not at.exception
         bodies = {s.proto.body for s in at.subheader}
         assert "Payout Reconciliation Audit Log" in bodies, "Chart 3 title missing"
-        assert len(at.dataframe) >= 1, (
-            f"Expected at least 1 dataframe, got {len(at.dataframe)}"
-        )
+        assert (
+            len(at.dataframe) >= 1
+        ), f"Expected at least 1 dataframe, got {len(at.dataframe)}"
 
     # -- Empty dataset --------------------------------------------------------
 
@@ -168,9 +169,9 @@ class TestDashboardApp:
         at.session_state["_gold_reader"] = _empty_reader()
         at.run()
 
-        assert not at.exception and len(at.info) >= 1, (
-            f"Expected info message, got exception={at.exception}, info_count={len(at.info)}"
-        )
+        assert (
+            not at.exception and len(at.info) >= 1
+        ), f"Expected info message, got exception={at.exception}, info_count={len(at.info)}"
 
     # -- Tenant isolation -----------------------------------------------------
 

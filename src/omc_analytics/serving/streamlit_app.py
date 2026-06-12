@@ -25,9 +25,7 @@ if "merchant_id" not in st.session_state:
 st.sidebar.title("OFAE Analytics")
 
 # Connection status micro-indicator (replace text_input from PR5a)
-st.sidebar.markdown(
-    f"🔗 **Connected as:** `{st.session_state.merchant_id}`"
-)
+st.sidebar.markdown(f"🔗 **Connected as:** `{st.session_state.merchant_id}`")
 
 # ---------------------------------------------------------------------------
 # Page routing via st.navigation
@@ -44,8 +42,14 @@ dashboard_page = st.Page(  # type: ignore[attr-defined]
     icon="📊",
 )
 
+onboarding_page = st.Page(  # type: ignore[attr-defined]
+    "pages/onboarding.py",
+    title="Onboarding",
+    icon="🚀",
+)
+
 nav = st.navigation(  # type: ignore[attr-defined]
-    [cogs_page, dashboard_page],
+    [onboarding_page, cogs_page, dashboard_page],
     position="sidebar",
 )
 nav.run()

@@ -304,10 +304,16 @@ class TestAlertsFactory:
     def test_default_returns_inmemory(self, monkeypatch):
         """When OMCAE_ALERTS_BACKEND is unset, return InMemoryAlerts."""
         monkeypatch.delenv("OMCAE_ALERTS_BACKEND", raising=False)
-        ctx = RunContext(run_id="test", merchant_id="m1", env="dev",
-                         bucket_name="b", run_timestamp_utc=__import__("datetime").datetime.now())
+        ctx = RunContext(
+            run_id="test",
+            merchant_id="m1",
+            env="dev",
+            bucket_name="b",
+            run_timestamp_utc=__import__("datetime").datetime.now(),
+        )
         result = alerts_factory(ctx)
         from omc_analytics.common.alerts import InMemoryAlerts
+
         assert isinstance(result, InMemoryAlerts)
 
     def test_postgres_with_factory(self, monkeypatch):
@@ -315,20 +321,32 @@ class TestAlertsFactory:
         from unittest.mock import MagicMock
 
         import psycopg2
+
         monkeypatch.setenv("OMCAE_ALERTS_BACKEND", "postgres")
-        ctx = RunContext(run_id="test", merchant_id="m1", env="dev",
-                         bucket_name="b", run_timestamp_utc=__import__("datetime").datetime.now(),
-                         alerts_backend="postgres")
+        ctx = RunContext(
+            run_id="test",
+            merchant_id="m1",
+            env="dev",
+            bucket_name="b",
+            run_timestamp_utc=__import__("datetime").datetime.now(),
+            alerts_backend="postgres",
+        )
         factory = MagicMock(spec=psycopg2.extensions.connection)
         result = alerts_factory(ctx, connection_factory=factory)
         from omc_analytics.common.postgres_alerts import PostgresAlerts
+
         assert isinstance(result, PostgresAlerts)
 
     def test_postgres_without_factory_raises_config_error(self, monkeypatch):
         """OMCAE_ALERTS_BACKEND=postgres without connection_factory → ConfigError."""
         monkeypatch.setenv("OMCAE_ALERTS_BACKEND", "postgres")
-        ctx = RunContext(run_id="test", merchant_id="m1", env="dev",
-                         bucket_name="b", run_timestamp_utc=__import__("datetime").datetime.now(),
-                         alerts_backend="postgres")
+        ctx = RunContext(
+            run_id="test",
+            merchant_id="m1",
+            env="dev",
+            bucket_name="b",
+            run_timestamp_utc=__import__("datetime").datetime.now(),
+            alerts_backend="postgres",
+        )
         with pytest.raises(ConfigError):
             alerts_factory(ctx)

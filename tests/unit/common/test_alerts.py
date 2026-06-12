@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-import pytest
-
-from omc_analytics.common.alerts import AlertsPort, EngineeringAlert, InMemoryAlerts
+from omc_analytics.common.alerts import EngineeringAlert, InMemoryAlerts
 
 
 class TestEngineeringAlertModel:
@@ -81,12 +79,20 @@ class TestInMemoryAlerts:
     def test_multiple_alerts_maintain_order(self):
         alerts = InMemoryAlerts()
         a1 = EngineeringAlert(
-            id=uuid4(), source="a", severity="info", error_class="E1",
-            error_message="m1", created_at=datetime.now(UTC),
+            id=uuid4(),
+            source="a",
+            severity="info",
+            error_class="E1",
+            error_message="m1",
+            created_at=datetime.now(UTC),
         )
         a2 = EngineeringAlert(
-            id=uuid4(), source="b", severity="error", error_class="E2",
-            error_message="m2", created_at=datetime.now(UTC),
+            id=uuid4(),
+            source="b",
+            severity="error",
+            error_class="E2",
+            error_message="m2",
+            created_at=datetime.now(UTC),
         )
         alerts.insert_alert(a1)
         alerts.insert_alert(a2)
