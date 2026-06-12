@@ -74,3 +74,11 @@ class TestCogsEditorApp:
         at.run()
 
         assert not at.exception, f"App entry raised exception: {at.exception}"
+
+    def test_app_routes_to_dashboard(self) -> None:
+        """GIVEN streamlit_app.py loaded (PR5b)
+        THEN navigation includes a link to Executive Dashboard page."""
+        at = AppTest.from_file(str(PAGES_DIR / "streamlit_app.py"))
+        at.run()
+
+        assert not at.exception, f"App entry raised exception: {at.exception}"

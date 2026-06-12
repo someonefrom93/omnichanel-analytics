@@ -39,8 +39,14 @@ cogs_page = st.Page(  # type: ignore[attr-defined]
     icon="💰",
 )
 
+dashboard_page = st.Page(  # type: ignore[attr-defined]
+    "pages/dashboard.py",
+    title="Executive Dashboard",
+    icon="📊",
+)
+
 nav = st.navigation(  # type: ignore[attr-defined]
-    [cogs_page],
+    [cogs_page, dashboard_page],
     position="sidebar",
 )
 nav.run()

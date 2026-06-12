@@ -113,3 +113,86 @@ class TestGoldReaderMerchantScoping:
         rows = reader.list_merchant_cogs(merchant_id="store_001")
         assert len(rows) == 1, f"Expected 1 row for store_001, got {len(rows)}"
         assert rows[0]["line_item_sku"] == "BURGER"  # type: ignore[index]
+
+
+class TestGoldReaderListFactFinancialSales:
+    """Unit tests for GoldReader.list_fact_financial_sales (PR5b)."""
+
+    def test_list_fact_financial_sales_requires_merchant_id(self) -> None:
+        """GIVEN GoldReader instantiated with merchant_id
+        WHEN list_fact_financial_sales called without merchant_id arg
+        THEN TypeError is raised."""
+        import pytest
+        from omc_analytics.serving.data_access import GoldReader
+
+        reader = GoldReader(merchant_id="store_001")
+        with pytest.raises(TypeError):
+            reader.list_fact_financial_sales()  # type: ignore[call-arg]
+
+    def test_list_fact_financial_sales_scoped_to_merchant(self) -> None:
+        """GIVEN DuckDB with fact_financial_sales rows for store_001 and store_002
+        WHEN reader.list_fact_financial_sales(merchant_id="store_001") called
+        THEN only store_001 rows returned."""
+        import duckdb
+        from omc_analytics.serving.data_access import GoldReader
+
+        conn = duckdb.connect(":memory:")
+        conn.execute("""
+            CREATE TABLE fact_financial_sales AS
+            SELECT 'store_001' AS merchant_id, 'ORD-001' AS order_id,
+                   'UberEats' AS source_marketplace, 'BURGER' AS line_item_sku,
+                   25.0 AS gross_order_value, 20.0 AS net_payout_amount,
+                   15.0 AS true_net_payout_margin, 5.0 AS estimated_marketplace_commission,
+                   0.0 AS settlement_variance_amount, '' AS variance_reason
+            UNION ALL
+            SELECT 'store_001', 'ORD-002', 'DoorDash', 'FRIES',
+                   15.0, 12.0, 9.0, 3.0, 1.5, 'Fee mismatch'
+            UNION ALL
+            SELECT 'store_002', 'ORD-003', 'UberEats', 'PIZZA',
+                   30.0, 25.0, 20.0, 5.0, 0.0, ''
+        """)
+
+        reader = GoldReader(merchant_id="store_001")
+        reader._conn = conn  # type: ignore[attr-defined]
+
+        rows = reader.list_fact_financial_sales(merchant_id="store_001")
+        assert len(rows) == 2, f"Expected 2 rows for store_001, got {len(rows)}"
+        order_ids = {row["order_id"] for row in rows}  # type: ignore[index]
+        assert order_ids == {"ORD-001", "ORD-002"}, f"Wrong orders: {order_ids}"
+
+    def test_list_fact_financial_sales_empty_table(self) -> None:
+        """GIVEN DuckDB with no fact_financial_sales table
+        WHEN list_fact_financial_sales called
+        THEN empty list returned without error."""
+        import duckdb
+        from omc_analytics.serving.data_access import GoldReader
+
+        conn = duckdb.connect(":memory:")
+        reader = GoldReader(merchant_id="store_001")
+        reader._conn = conn  # type: ignore[attr-defined]
+
+        rows = reader.list_fact_financial_sales(merchant_id="store_001")
+        assert rows == [], f"Expected empty list, got {rows}"
+
+    def test_list_fact_financial_sales_no_matching_merchant(self) -> None:
+        """GIVEN DuckDB with rows only for store_001
+        WHEN list_fact_financial_sales(merchant_id="store_002") called
+        THEN empty list returned."""
+        import duckdb
+        from omc_analytics.serving.data_access import GoldReader
+
+        conn = duckdb.connect(":memory:")
+        conn.execute("""
+            CREATE TABLE fact_financial_sales AS
+            SELECT 'store_001' AS merchant_id, 'ORD-001' AS order_id,
+                   'UberEats' AS source_marketplace, 'BURGER' AS line_item_sku,
+                   25.0 AS gross_order_value, 20.0 AS net_payout_amount,
+                   15.0 AS true_net_payout_margin, 5.0 AS estimated_marketplace_commission,
+                   0.0 AS settlement_variance_amount, '' AS variance_reason
+        """)
+
+        reader = GoldReader(merchant_id="store_002")
+        reader._conn = conn  # type: ignore[attr-defined]
+
+        rows = reader.list_fact_financial_sales(merchant_id="store_002")
+        assert rows == [], f"Expected empty list for store_002, got {len(rows)} rows"
