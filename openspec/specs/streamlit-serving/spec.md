@@ -1,12 +1,13 @@
 # streamlit-serving Specification
 
-> New capability. Source: umbrella `openspec/changes/streamlit-ui-pr5/proposal.md` — PR5a.
+> Source: umbrella `openspec/changes/streamlit-ui-pr5/proposal.md` — PR5a + PR5b.
 
 ## Purpose
 
 Streamlit app scaffolding with multi-tenant fence (`merchant_id` in session state),
-COGS editor page (data grid + upsert), and read/write adapters for Gold data layer.
-PR5a delivers entry, sidebar, COGS editor, and data access; dashboard deferred to PR5b.
+COGS editor page (data grid + upsert), executive dashboard (3 KPI cards + 3 charts),
+and read/write adapters for Gold data layer.
+PR5a delivered entry, sidebar, COGS editor, and data access; PR5b added dashboard and `list_fact_financial_sales`.
 
 ## Requirements
 
@@ -15,7 +16,8 @@ PR5a delivers entry, sidebar, COGS editor, and data access; dashboard deferred t
 The system MUST serve `streamlit_app.py` as entry point with `st.set_page_config(title="OFAE Analytics")`.
 Sidebar MUST expose a `merchant_id` text input stored in `st.session_state.merchant_id`
 (default `"merchant_001"` for dev; OAuth stub for PR6).
-`st.navigation` MUST route to `pages/cogs_editor.py`.
+`st.navigation` MUST route to `pages/cogs_editor.py` AND `pages/dashboard.py`.
+(Previously: navigation only routed to `pages/cogs_editor.py`.)
 
 #### Scenario: App starts with default merchant
 
@@ -49,8 +51,8 @@ Migration MUST be idempotent (`IF NOT EXISTS`). Composite unique index on
 
 `GoldReader` class MUST accept `merchant_id: str` in constructor.
 Every read method MUST require `merchant_id` as parameter.
-Methods: `list_menu_items()`, `list_merchant_cogs()`. Missing `merchant_id` on
-any method SHALL raise `TypeError`.
+Methods: `list_menu_items()`, `list_merchant_cogs()`, `list_fact_financial_sales()`.
+Missing `merchant_id` on any method SHALL raise `TypeError`.
 
 #### Scenario: GoldReader enforces tenant fence
 
@@ -63,6 +65,18 @@ any method SHALL raise `TypeError`.
 - GIVEN GoldReader connected to DuckDB with `dim_menu_catalog` rows for store_001 and store_002
 - WHEN `reader.list_menu_items(merchant_id="store_001")` is called
 - THEN only store_001 rows are returned
+
+#### Scenario: list_fact_financial_sales scoped to merchant
+
+- GIVEN `fact_financial_sales` seeded with rows for store_001 and store_002
+- WHEN `reader.list_fact_financial_sales(merchant_id="store_001")` is called
+- THEN only store_001 rows returned
+
+#### Scenario: list_fact_financial_sales empty table
+
+- GIVEN `fact_financial_sales` table does not exist in DuckDB
+- WHEN method called
+- THEN returns `[]` without raising
 
 ### Requirement: CogsWriter with Upsert/Delete
 
@@ -104,6 +118,16 @@ call `CogsWriter.upsert` per modified row. Page MUST redirect user if
 - GIVEN `st.session_state.merchant_id` is empty
 - WHEN COGS editor page loads
 - THEN page shows "Please enter a Merchant ID" and no data grid
+
+### Requirement: Dashboard Page Route
+
+`st.navigation` MUST include `pages/dashboard.py` as "Executive Dashboard" page with icon "📊".
+
+#### Scenario: Dashboard available in navigation
+
+- GIVEN the Streamlit app running
+- WHEN navigation renders
+- THEN "Executive Dashboard" page listed alongside "COGS Editor"
 
 ### Requirement: AppTest Scenarios
 
