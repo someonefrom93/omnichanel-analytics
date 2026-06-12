@@ -17,17 +17,16 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------------------
-# Sidebar — merchant_id selector (stub for PR6 OAuth)
+# Sidebar — connection-status micro-indicator (PR6a placeholder, full UI in PR6b)
 # ---------------------------------------------------------------------------
 if "merchant_id" not in st.session_state:
     st.session_state.merchant_id = "merchant_001"
 
 st.sidebar.title("OFAE Analytics")
 
-st.session_state.merchant_id = st.sidebar.text_input(
-    "Merchant ID",
-    value=st.session_state.merchant_id,
-    help="Enter the merchant ID to view data. Default: merchant_001 (dev).",
+# Connection status micro-indicator (replace text_input from PR5a)
+st.sidebar.markdown(
+    f"🔗 **Connected as:** `{st.session_state.merchant_id}`"
 )
 
 # ---------------------------------------------------------------------------

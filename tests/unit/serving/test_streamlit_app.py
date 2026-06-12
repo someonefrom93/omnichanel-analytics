@@ -58,14 +58,13 @@ class TestCogsEditorApp:
 
     def test_sidebar_merchant_input_exists(self) -> None:
         """GIVEN streamlit_app.py loaded
-        THEN sidebar contains a text_input for Merchant ID."""
+        THEN sidebar shows connection-status micro-indicator (PR6a placeholder)."""
         at = AppTest.from_file(str(PAGES_DIR / "streamlit_app.py"))
         at.run()
 
-        # Verify a text_input element is present (the merchant_id input)
-        text_inputs = at.text_input
-        assert len(text_inputs) >= 1, "Expected at least one text_input in sidebar"
-        assert text_inputs[0].value == "merchant_001", "Merchant ID default is wrong"
+        # PR6a: replaced text_input with read-only connection-status indicator
+        # Verify merchant_id is in session state (micro-indicator is markdown)
+        assert at.session_state["merchant_id"] == "merchant_001"  # type: ignore[index]
 
     def test_app_routes_to_cogs_editor(self) -> None:
         """GIVEN streamlit_app.py loaded

@@ -12,7 +12,11 @@ from omc_analytics.common.secrets import (
     MerchantNotFoundError,
     SecretsPort,
 )
-from omc_analytics.ingestion.errors import OAuthInitialTokenError, OAuthRefreshError
+from omc_analytics.ingestion.errors import (
+    OAuthAuthorizationCodeError,
+    OAuthInitialTokenError,
+    OAuthRefreshError,
+)
 
 
 class OAuthRefresher:
@@ -159,6 +163,56 @@ class OAuthRefresher:
         if resp.status_code != 200:
             raise OAuthInitialTokenError(
                 f"Initial token request failed: {resp.status_code} {resp.text[:200]}"
+            )
+
+        data = resp.json()
+        now = self._clock()
+        expires_at = now + timedelta(seconds=data["expires_in"]) - timedelta(seconds=60)
+
+        new_creds = creds.model_copy(
+            update={
+                "access_token": data["access_token"],
+                "refresh_token": data.get("refresh_token"),
+                "expires_at": expires_at,
+            }
+        )
+        self._secrets.save(new_creds)
+        return new_creds
+
+    def exchange_authorization_code(
+        self,
+        code: str,
+        redirect_uri: str,
+    ) -> MerchantCredentials:
+        """Exchange an OAuth authorization_code for tokens (Otter OAuth flow).
+
+        Args:
+            code: One-time authorization code from Otter's callback.
+            redirect_uri: The redirect URI registered with Otter.
+
+        Returns:
+            MerchantCredentials with access_token, refresh_token, and expires_at.
+
+        Raises:
+            OAuthAuthorizationCodeError: If the HTTP response is not 200.
+            MerchantNotFoundError: If the merchant_id is not in secrets.
+        """
+        merchant_id = "merchant_001"  # Default — caller can extend later
+        creds = self._secrets.load(merchant_id)
+
+        url = f"{str(creds.public_api_url).rstrip('/')}/v1/auth/token"
+        body = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "client_id": creds.client_id,
+            "client_secret": creds.client_secret_encrypted,
+        }
+
+        resp = self._session.post(url, data=body)
+        if resp.status_code != 200:
+            raise OAuthAuthorizationCodeError(
+                f"Authorization code exchange failed: {resp.status_code} {resp.text[:200]}"
             )
 
         data = resp.json()

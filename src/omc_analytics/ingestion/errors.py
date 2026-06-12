@@ -53,3 +53,28 @@ class ReportPollingExhaustedError(Exception):
         super().__init__(
             f"Report job {job_id!r} polling exhausted after {max_retries} retries without reaching READY"
         )
+
+
+# ---------------------------------------------------------------------------
+# PR6a: Typed error tiers for Streamlit UI classification
+# ---------------------------------------------------------------------------
+
+
+class Tier1AuthError(Exception):
+    """Authentication/authorization failure (401/403).
+
+    Raised by the ingestion layer when Otter responds with persistent
+    401 or 403 errors. Tier 1 errors surface a warning banner in the UI.
+    """
+
+
+class Tier2LatencyError(Exception):
+    """Infrastructure/latency failure (429 exhaustion, 5xx).
+
+    Raised when Otter API rate limits are exhausted or server errors
+    persist. Tier 2 errors surface an info banner in the UI.
+    """
+
+
+class OAuthAuthorizationCodeError(Exception):
+    """Raised when the authorization_code exchange fails (non-200)."""

@@ -60,6 +60,7 @@ class RunContext:
     # Backend selection
     secrets_backend: str = "memory"
     logs_backend: str = "memory"
+    alerts_backend: str = "memory"
     kms_key_id: str | None = None
     pg_dsn: str | None = None
     aws_region: str = "us-east-1"
@@ -67,6 +68,7 @@ class RunContext:
     s3_client: Any = field(default=None, repr=False)
     secrets: SecretsPort | None = field(default=None, repr=False)
     logs: LogsPort | None = field(default=None, repr=False)
+    alerts: Any = field(default=None, repr=False)
     oauth: OAuthRefresher | None = field(default=None, repr=False)
     otter: OtterClient | None = field(default=None, repr=False)
     bronze: BronzeWriter | None = field(default=None, repr=False)
@@ -102,6 +104,7 @@ def _read_env_defaults() -> dict[str, str]:
     return {
         "secrets_backend": os.environ.get("OMCAE_SECRETS_BACKEND", "memory"),
         "logs_backend": os.environ.get("OMCAE_LOGS_BACKEND", "memory"),
+        "alerts_backend": os.environ.get("OMCAE_ALERTS_BACKEND", "memory"),
         "kms_key_id": os.environ.get("OMCAE_KMS_KEY_ID", ""),
         "pg_dsn": os.environ.get("OMCAE_PG_DSN", ""),
         "aws_region": os.environ.get("OMCAE_AWS_REGION", "us-east-1"),
@@ -254,6 +257,60 @@ def _build_postgres_logs(
     return PostgresLogs(connection_factory=connection_factory)
 
 
+def alerts_factory(
+    ctx: RunContext,
+    connection_factory: Any = None,
+) -> Any:  # Returns AlertsPort (protocol type)
+    """Factory that returns the appropriate AlertsPort implementation.
+
+    Args:
+        ctx: RunContext with backend selection fields.
+        connection_factory: Callable returning a psycopg2 connection
+            (required when alerts_backend is "postgres").
+
+    Returns:
+        InMemoryAlerts (default) or PostgresAlerts (production).
+
+    Raises:
+        ConfigError: If alerts_backend is "postgres" but connection_factory is None.
+    """
+    backend = ctx.alerts_backend
+
+    if backend == "memory":
+        return _build_inmemory_alerts(ctx)
+
+    if backend == "postgres":
+        return _build_postgres_alerts(ctx, connection_factory)
+
+    raise ConfigError(
+        name="OMCAE_ALERTS_BACKEND",
+        reason=f"unknown backend {backend!r}; allowed: memory, postgres",
+    )
+
+
+def _build_inmemory_alerts(ctx: RunContext) -> Any:
+    """Build InMemoryAlerts (dev path)."""
+    from omc_analytics.common.alerts import InMemoryAlerts
+
+    return InMemoryAlerts()
+
+
+def _build_postgres_alerts(
+    ctx: RunContext,
+    connection_factory: Any,
+) -> Any:
+    """Build PostgresAlerts (production path)."""
+    from omc_analytics.common.postgres_alerts import PostgresAlerts
+
+    if connection_factory is None:
+        raise ConfigError(
+            name="OMCAE_PG_DSN",
+            reason="OMCAE_ALERTS_BACKEND=postgres requires a connection factory",
+        )
+
+    return PostgresAlerts(connection_factory=connection_factory)
+
+
 # ---------------------------------------------------------------------------
 # Main context builder
 # ---------------------------------------------------------------------------
@@ -326,6 +383,7 @@ def build_run_context(
         run_timestamp_utc=run_timestamp_utc,
         secrets_backend=env_defaults["secrets_backend"],
         logs_backend=env_defaults["logs_backend"],
+        alerts_backend=env_defaults["alerts_backend"],
         kms_key_id=env_defaults["kms_key_id"] or None,
         pg_dsn=env_defaults["pg_dsn"] or None,
         aws_region=env_defaults["aws_region"],

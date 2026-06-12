@@ -363,15 +363,15 @@ def test_run_bronze_impl_writes_failed_log_on_error() -> None:
 
             run_ctx = _build_run_context(secrets, logs, s3_client)
 
-            from omc_analytics.ingestion.errors import OtterAPIError
+            from omc_analytics.ingestion.errors import Tier2LatencyError
 
-            with pytest.raises(OtterAPIError):
+            with pytest.raises(Tier2LatencyError):
                 run_bronze_impl(run_ctx)
 
         rows = logs.get_all()
         assert len(rows) == 1
         assert rows[0].status == "FAILED"
-        assert rows[0].error_class == "OtterAPIError"
+        assert rows[0].error_class == "Tier2LatencyError"
         assert rows[0].error_message is not None
 
 

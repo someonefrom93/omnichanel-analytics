@@ -17,6 +17,8 @@ from omc_analytics.ingestion.errors import (
     OtterAPIError,
     ReportJobCancelledError,
     ReportJobFailedError,
+    Tier1AuthError,
+    Tier2LatencyError,
 )
 from omc_analytics.ingestion.oauth import OAuthRefresher
 
@@ -285,9 +287,9 @@ class TestFetchOrders:
                 status=200,
             )
 
-            with pytest.raises(OtterAPIError) as exc_info:
+            with pytest.raises(Tier1AuthError) as exc_info:
                 client.fetch_orders("store_001", start, end)
-            assert exc_info.value.status_code == 401
+            assert "401" in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------
@@ -471,7 +473,7 @@ class Test429Backoff:
             for _ in range(4):
                 rs.add(rs.GET, "https://api.otter.dev/v1/orders", status=429, body="")
 
-            with pytest.raises(BackoffExhaustedError):
+            with pytest.raises(Tier2LatencyError):
                 client.fetch_orders("store_001", start, end)
 
     def test_429_during_401_recovery_uses_rate_limit_policy(

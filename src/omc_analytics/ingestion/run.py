@@ -24,9 +24,11 @@ import boto3
 import click
 import requests
 
+from omc_analytics.common.alerts import EngineeringAlert
 from omc_analytics.common.config import (
     RunContext,
     _read_env_defaults,
+    alerts_factory,
     logs_factory,
     secrets_factory,
 )
@@ -352,7 +354,42 @@ def run_bronze_impl(
             error_class=type(exc).__name__,
             error_message=str(exc),
         )
+        # Insert engineering alert for all failures (Tier 3 = everything)
+        # PR6b will classify tiers before reaching this point
+        _insert_engineering_alert(run_ctx, exc, effective_run_id)
         raise
+
+
+def _insert_engineering_alert(
+    run_ctx: RunContext,
+    exc: Exception,
+    run_id: UUID,
+) -> None:
+    """Insert a best-effort engineering alert for unexpected errors.
+
+    Tier 3 by default — PR6b's classify() will pre-filter Tier 1/2.
+    Never raises — if alerts insertion fails, we swallow and continue.
+    """
+    import traceback
+    from datetime import UTC, datetime
+
+    try:
+        alerts = run_ctx.alerts
+        if alerts is None:
+            return  # No alerts backend configured
+
+        alert = EngineeringAlert(
+            id=uuid4(),
+            source="bronze_ingestion",
+            severity="error",
+            error_class=type(exc).__name__,
+            error_message=str(exc)[:1000],
+            stack_trace=traceback.format_exc()[:5000],
+            created_at=datetime.now(UTC),
+        )
+        alerts.insert_alert(alert)
+    except Exception:
+        pass  # Best-effort — never block the pipeline for alerts
 
 
 def run_bronze_with_backfill(ctx: RunContext) -> int:
@@ -603,6 +640,7 @@ def run_bronze(
     # Use factories to build the right implementations
     secrets = secrets_factory(run_ctx, kms_client=kms_client, blob_store=blob_store)
     logs = logs_factory(run_ctx, connection_factory=connection_factory)
+    alerts = alerts_factory(run_ctx, connection_factory=connection_factory)
 
     _secrets, _logs, _oauth, _otter, _bronze, run_ctx = _build_deps(
         merchant_id=merchant_id,
@@ -613,6 +651,7 @@ def run_bronze(
         backfill=backfill,
         backfill_days=backfill_days,
     )
+    run_ctx.alerts = alerts
 
     if backfill:
         return_code = run_bronze_with_backfill(run_ctx)

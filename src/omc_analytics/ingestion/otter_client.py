@@ -18,10 +18,10 @@ import requests
 from omc_analytics.common.secrets import SecretsPort
 from omc_analytics.ingestion.backoff import RetryPolicy
 from omc_analytics.ingestion.errors import (
-    BackoffExhaustedError,
-    OtterAPIError,
     ReportJobCancelledError,
     ReportJobFailedError,
+    Tier1AuthError,
+    Tier2LatencyError,
 )
 from omc_analytics.ingestion.oauth import OAuthRefresher
 
@@ -191,23 +191,27 @@ class OtterClient:
                         ] = f"Bearer {creds.access_token}"
                     continue
                 else:
-                    # Third 401: give up
-                    raise OtterAPIError(resp.status_code, resp.text)
+                    # Third 401: give up → Tier 1 auth error
+                    raise Tier1AuthError(
+                        f"Auth failure after 3 consecutive 401s: {resp.status_code} {resp.text[:200]}"
+                    )
 
             if resp.status_code == 429:
                 # Apply rate-limit backoff
                 retry_count = attempt - 1
                 if not self._rate_limit.should_retry(retry_count):
-                    raise BackoffExhaustedError(
-                        f"429 after {attempt} attempts, backoff exhausted"
+                    raise Tier2LatencyError(
+                        f"Rate limit backoff exhausted after {attempt} attempts: 429"
                     )
                 wait_time = self._rate_limit.wait_for(retry_count)
                 time.sleep(wait_time)
                 continue
 
             if 500 <= resp.status_code < 600:
-                # Server error — raise immediately without retry
-                raise OtterAPIError(resp.status_code, resp.text)
+                # Server error — raise as Tier 2 latency error (no retry)
+                raise Tier2LatencyError(
+                    f"Server error {resp.status_code}: {resp.text[:200]}"
+                )
 
             # Success (2xx)
             return resp
