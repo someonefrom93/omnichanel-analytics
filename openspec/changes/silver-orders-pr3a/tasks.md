@@ -28,11 +28,11 @@ Chain strategy: pending
 
 ## Phase 3: Source Definition
 
-- [ ] 3.1 **Create _sources.yml** — Define `bronze.orders` source with `external_location` using `read_json_auto(..., format='array')` pointing to Bronze glob. Files: `dbt_project/models/silver/_sources.yml`. Spec: ADDED §bronze.orders Source. Design: §Source Definition. *Done when: `dbt compile` resolves source.*
+- [x] 3.1 **Create _sources.yml** — Define `bronze.orders` source with `external_location` using `read_json_auto(..., format='array')` pointing to Bronze glob. Files: `dbt_project/models/silver/_sources.yml`. Spec: ADDED §bronze.orders Source. Design: §Source Definition. *Done when: `dbt compile` resolves source.*
 
 ## Phase 4: parse_bronze_filename Macro
 
-- [ ] 4.1 **Create macro** — DuckDB regex extracting `target_date` (YYYYMMDD→YYYY-MM-DD) + `run_timestamp_utc` from `_filename`. Files: `dbt_project/macros/parse_bronze_filename.sql`. Design: §Macro. *Done when: macro compiles via `dbt parse`.*
+- [x] 4.1 **Create macro** — DuckDB regex extracting `target_date` (YYYYMMDD→YYYY-MM-DD) + `run_timestamp_utc` from `_filename`. Files: `dbt_project/macros/parse_bronze_filename.sql`. Design: §Macro. *Done when: macro compiles via `dbt parse`.*
 
 ## Phase 5: silver_orders Model + Schema + Tests
 

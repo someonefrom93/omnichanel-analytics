@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: "Raw Otter API data ingested into the Bronze S3 bucket (or local mirror in dev). One JSON file per Otter endpoint per (merchant, target_date, run_timestamp) tuple."
+    meta:
+      external_location: "{{ env_var('OMCAE_BRONZE_PATH', 's3://ofae-data-lakehouse-bronze-{env}/otter') }}"
+    tables:
+      - name: orders
+        description: "Otter /v1/orders response. Top-level `orders` array (one element per order) with nested `items` array (one element per line item)."
+        meta:
+          external_location: "merchant_id=*/year=*/month=*/day=*/orders-*.json"
+        columns:
+          - name: orders
+            description: "Array of order objects from the Otter response."
+          - name: next_cursor
+            description: "Pagination cursor (null in fixtures)."
