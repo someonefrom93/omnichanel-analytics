@@ -219,6 +219,8 @@ ofae_analytics:
                 "OMCAE_DUCKDB_PATH": str(duckdb_path),
                 "OMCAE_USE_LOCAL_BRONZE": "true",
                 "OMCAE_BRONZE_PATH": "s3://ofae-data-lakehouse-bronze-dev/otter",
+                # PR4a: PII salt (required at dbt parse time)
+                "OMCAE_PII_SALT": "test-salt",
             },
         )
 

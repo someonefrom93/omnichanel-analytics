@@ -309,3 +309,42 @@ def test_blob_store_protocol_compatible_with_in_memory(kms_key):
     result = store.get("M1")
     assert result == blob_dict
     assert store.get("UNKNOWN") is None
+
+
+# ---------------------------------------------------------------------------
+# PR4a: pii_salt round-trip
+# ---------------------------------------------------------------------------
+
+
+def test_save_then_load_preserves_pii_salt(kms_key):
+    """PR4a: KMS round-trip preserves auto-generated pii_salt."""
+    secrets = _make_kms_secrets(kms_key)
+    creds = MerchantCredentials(
+        merchant_id="M1",
+        public_api_url="https://api.example.com",
+        client_id="cid",
+        client_secret_encrypted="secret",
+    )
+    # pii_salt is auto-generated during construction
+    original_salt = creds.pii_salt
+    assert original_salt is not None
+    assert len(original_salt) == 32
+
+    secrets.save(creds)
+    loaded = secrets.load("M1")
+    assert loaded.pii_salt == original_salt
+
+
+def test_save_then_load_preserves_explicit_pii_salt(kms_key):
+    """PR4a: KMS round-trip preserves explicitly provided pii_salt."""
+    secrets = _make_kms_secrets(kms_key)
+    creds = MerchantCredentials(
+        merchant_id="M1",
+        public_api_url="https://api.example.com",
+        client_id="cid",
+        client_secret_encrypted="secret",
+        pii_salt="a" * 32,
+    )
+    secrets.save(creds)
+    loaded = secrets.load("M1")
+    assert loaded.pii_salt == "a" * 32

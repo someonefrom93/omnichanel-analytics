@@ -65,6 +65,16 @@ models:
       - name: customer_phone_hash
         description: "SHA-256 of customer phone (raw, no salt). PR4 will add salt and re-materialize via dbt run --full-refresh."
 
+      - name: customer_name_hash_salted
+        description: "PR4a: Salted hash of customer name using DuckDB hash() (xxhash64). Per-merchant stable, non-reversible ID. Salt from OMCAE_PII_SALT env var."
+        tests:
+          - not_null
+
+      - name: customer_phone_hash_salted
+        description: "PR4a: Salted hash of customer phone using DuckDB hash() (xxhash64). Per-merchant stable, non-reversible ID. Salt from OMCAE_PII_SALT env var."
+        tests:
+          - not_null
+
     # Composite uniqueness per PRD §5.3.
     # dbt_utils.unique_combination_of_columns used here when dbt_utils is available.
     # Fallback: silver_orders_unique_order_marketplace.sql custom singular test.

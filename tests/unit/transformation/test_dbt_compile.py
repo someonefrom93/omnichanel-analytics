@@ -53,6 +53,7 @@ def test_dbt_compile_succeeds(tmp_path: Path) -> None:
         "OMCAE_DBT_TARGET": "dev",
         "OMCAE_DUCKDB_PATH": str(tmp_path / "compile.duckdb"),
         "OMCAE_BRONZE_PATH": "s3://ofae-data-lakehouse-bronze-dev/otter",
+        "OMCAE_PII_SALT": "test-salt",
     }
     result = _dbt_cmd_with_env("compile", env=env)
     # dbt compile succeeds only if:
@@ -137,6 +138,7 @@ class TestDbtCompileWithSilverReports:
             "OMCAE_DBT_TARGET": "dev",
             "OMCAE_DUCKDB_PATH": str(tmp_path / "compile.duckdb"),
             "OMCAE_BRONZE_PATH": "s3://ofae-data-lakehouse-bronze-dev/otter",
+            "OMCAE_PII_SALT": "test-salt",
         }
         result = _dbt_cmd_with_env("compile", env=env)
         assert result.returncode == 0, (

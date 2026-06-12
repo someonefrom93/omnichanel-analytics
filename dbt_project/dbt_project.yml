@@ -25,6 +25,10 @@ vars:
   bronze_local_mirror: '{dbt_target_path}/bronze_mirror'
   silver_output_format: 'parquet'
   silver_compression: 'snappy'
+  # PR4a: PII salt for salted hashing (xxhash64).
+  # Set via OMCAE_PII_SALT env var at build time.
+  # Per-merchant salt via SecretsPort is PR5.
+  pii_salt: "{{ env_var('OMCAE_PII_SALT') }}"
 
 # Model configurations
 models:

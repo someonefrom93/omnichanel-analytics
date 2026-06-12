@@ -145,7 +145,11 @@ final as (
         line_item_unit_price,
         line_item_unit_currency,
         customer_name_hash,
-        customer_phone_hash
+        customer_phone_hash,
+        -- PR4a: salted PII columns using DuckDB hash() (xxhash64).
+        -- DEVIATION from PRD §3.2 "SHA-256" — see salted_hash macro docs.
+        {{ salted_hash('customer_name_hash') }} as customer_name_hash_salted,
+        {{ salted_hash('customer_phone_hash') }} as customer_phone_hash_salted
     from unnest_items
 )
 

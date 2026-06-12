@@ -215,6 +215,7 @@ class TestDbtCompileWithSilverOrders:
             "OMCAE_DBT_TARGET": "dev",
             "OMCAE_DUCKDB_PATH": str(tmp_path / "compile.duckdb"),
             "OMCAE_BRONZE_PATH": "s3://ofae-data-lakehouse-bronze-dev/otter",
+            "OMCAE_PII_SALT": "test-salt",
         }
         result = _dbt_cmd_with_env("compile", env=env)
         assert result.returncode == 0, (
