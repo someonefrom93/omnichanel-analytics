@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: silver_reports
+    description: "One row per Otter report job. Joins bronze.reports_enqueue (the enqueue request) with bronze.reports_result (the final result payload) on job_id. Financial aggregates from the result surface here per PRD §3.2. Materialized as incremental+merge with unique_key=job_id."
+    columns:
+      - name: job_id
+        description: "Otter's report job identifier. Uniquely identifies a report job across enqueue and result."
+        tests:
+          - not_null
+          - unique
+
+      - name: merchant_id
+        description: "Restaurant identifier in Otter (store_id from the result payload)."
+        tests:
+          - not_null
+
+      - name: enqueue_status
+        description: "Report job status from the enqueue (QUEUED, etc.). NULL when result has no matching enqueue."
+
+      - name: result_status
+        description: "Otter result status (READY, FAILED, CANCELLED)."
+        tests:
+          - not_null
+
+      - name: result_period_start
+        description: "Start of the report period (ISO 8601 timestamp)."
+
+      - name: result_period_end
+        description: "End of the report period (ISO 8601 timestamp)."
+
+      - name: gross_sales_amount
+        description: "Gross sales amount in minor units (e.g. cents). Per PRD §3.2."
+        tests:
+          - not_null
+
+      - name: gross_sales_currency
+        description: "ISO 4217 currency code for gross sales (e.g. USD, BRL, MXN)."
+
+      - name: net_payout_amount
+        description: "Net payout amount in minor units (e.g. cents). Per PRD §3.2."
+        tests:
+          - not_null
+
+      - name: net_payout_currency
+        description: "ISO 4217 currency code for net payout (e.g. USD, BRL, MXN)."

@@ -19,3 +19,35 @@ sources:
             description: "Array of order objects from the Otter response."
           - name: next_cursor
             description: "Pagination cursor (null in fixtures)."
+
+      - name: reports_enqueue
+        description: "Otter POST /v1/reports request bodies (jobId + QUEUED status)."
+        meta:
+          external_location: "read_json_auto('{{ env_var('OMCAE_BRONZE_PATH') }}/merchant_id=*/year=*/month=*/day=*/reports_enqueue-*.json', format='auto')"
+        columns:
+          - name: source
+            description: "API data source identifier."
+          - name: version
+            description: "API schema version."
+          - name: endpoint
+            description: "Otter API endpoint path."
+          - name: jobId
+            description: "Otter's report job identifier."
+          - name: status
+            description: "Report job status (QUEUED, etc.)."
+
+      - name: reports_result
+        description: "Otter GET /v1/reports/{jobId} response bodies (final report payload with totals)."
+        meta:
+          external_location: "read_json_auto('{{ env_var('OMCAE_BRONZE_PATH') }}/merchant_id=*/year=*/month=*/day=*/reports_result-*.json', format='auto')"
+        columns:
+          - name: source
+            description: "API data source identifier."
+          - name: version
+            description: "API schema version."
+          - name: endpoint
+            description: "Otter API endpoint path."
+          - name: status
+            description: "Report job status (READY, FAILED, CANCELLED)."
+          - name: result
+            description: "Nested report payload with period and totals."
