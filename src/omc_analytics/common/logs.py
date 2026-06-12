@@ -40,7 +40,7 @@ class RunLog(BaseModel):
     id: UUID
     merchant_id: str
     run_id: UUID
-    pipeline_name: Literal["otter_bronze_ingestion"]
+    pipeline_name: Literal["otter_bronze_ingestion", "silver_transformation"]
     status: Literal["STARTED", "SUCCESS", "FAILED"]
     started_at: datetime
     finished_at: datetime | None = None

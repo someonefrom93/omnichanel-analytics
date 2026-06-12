@@ -186,6 +186,26 @@ def moto_s3():
 
 
 # ---------------------------------------------------------------------------
+# mock dbt runner fixture
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def mock_dbt_runner():
+    """Provides a mock dbtRunner that returns success=True by default."""
+    from unittest.mock import MagicMock, patch
+
+    mock_result = MagicMock()
+    mock_result.success = True
+
+    with patch("omc_analytics.transformation.dbt_runner.dbtRunner") as mock_cls:
+        mock_runner = MagicMock()
+        mock_runner.invoke.return_value = mock_result
+        mock_cls.return_value = mock_runner
+        yield mock_runner
+
+
+# ---------------------------------------------------------------------------
 # otter_responses fixture — pre-registers common Otter endpoints
 # ---------------------------------------------------------------------------
 

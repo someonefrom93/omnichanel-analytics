@@ -44,6 +44,7 @@ from omc_analytics.ingestion.errors import (
 )
 from omc_analytics.ingestion.oauth import OAuthRefresher
 from omc_analytics.ingestion.otter_client import OtterClient
+from omc_analytics.transformation.cli import silver_group
 
 # ---------------------------------------------------------------------------
 # Pure helpers
@@ -619,6 +620,9 @@ def run_bronze(
         run_bronze_impl(run_ctx)
         click.echo(f"Bronze ingestion complete for merchant {merchant_id}.")
         sys.exit(0)
+
+
+cli.add_command(silver_group)
 
 
 if __name__ == "__main__":
