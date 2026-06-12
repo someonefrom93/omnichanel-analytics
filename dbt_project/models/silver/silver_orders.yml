@@ -1,0 +1,70 @@
+version: 2
+
+models:
+  - name: silver_orders
+    description: "One row per Otter order line item. Source: bronze.orders (Otter /v1/orders JSON). Unnests orders[] and items[] into one row per line item. Materialized as incremental+merge with composite unique_key on (order_id, source_marketplace) per PRD §5.3."
+    columns:
+      - name: order_id
+        description: "Otter's order identifier (string). Globally unique per channel."
+        tests:
+          - not_null
+
+      - name: source_marketplace
+        description: "Channel the order came from (ubereats, doordash, rappi, etc.)."
+        tests:
+          - not_null
+
+      - name: merchant_id
+        description: "Restaurant identifier in Otter (store_id)."
+        tests:
+          - not_null
+
+      - name: target_date
+        description: "Order date (cast from created_at). DEVIATION: PR3a derives from created_at. PR4 will rewire to parse_bronze_filename for backfill accuracy."
+        tests:
+          - not_null
+
+      - name: run_timestamp_utc
+        description: "Run timestamp from Bronze filename. Stubbed as NULL for PR3a. PR4 will wire from parse_bronze_filename macro."
+
+      - name: created_at
+        description: "The order's created_at timestamp from Otter."
+
+      - name: total_amount
+        description: "Order total in minor units (e.g. cents). Per PRD §5.3, 0.00 indicates a null-source anomaly. Custom singular test enforces >= 0."
+        tests:
+          - not_null
+          # dbt_utils.expression_is_true used here when dbt_utils is available.
+          # Fallback: silver_orders_total_amount_non_negative.sql custom singular test.
+
+      - name: total_currency
+        description: "ISO 4217 currency code (e.g. USD, BRL, MXN)."
+        tests:
+          - not_null
+
+      - name: line_item_sku
+        description: "SKU of this line item."
+
+      - name: line_item_name
+        description: "Human-readable name of the line item."
+
+      - name: line_item_qty
+        description: "Quantity ordered for this line item. Custom singular test enforces > 0."
+        # No tests key here — dbt requires tests to be an array, not null.
+        # Custom singular test: silver_orders_line_item_qty_positive.sql
+
+      - name: line_item_unit_price
+        description: "Unit price in minor units."
+
+      - name: line_item_unit_currency
+        description: "ISO 4217 currency code for the unit price."
+
+      - name: customer_name_hash
+        description: "SHA-256 of customer name (raw, no salt). PR4 will add salt and re-materialize via dbt run --full-refresh."
+
+      - name: customer_phone_hash
+        description: "SHA-256 of customer phone (raw, no salt). PR4 will add salt and re-materialize via dbt run --full-refresh."
+
+    # Composite uniqueness per PRD §5.3.
+    # dbt_utils.unique_combination_of_columns used here when dbt_utils is available.
+    # Fallback: silver_orders_unique_order_marketplace.sql custom singular test.
