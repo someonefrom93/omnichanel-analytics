@@ -212,9 +212,9 @@ ofae_analytics:
             },
         )
 
-        assert success, (
-            f"dbt build failed for silver_orders.\nException: {exception_msg}"
-        )
+        assert (
+            success
+        ), f"dbt build failed for silver_orders.\nException: {exception_msg}"
 
         # Verify the Silver table
         con = duckdb.connect(str(duckdb_path))
