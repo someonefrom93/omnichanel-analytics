@@ -11,10 +11,17 @@ models:
           - unique
 
       - name: merchant_id
-        description: "Restaurant identifier in Otter (store_id from the result payload)."
+        description: "Restaurant identifier in Otter."
         tests:
           - not_null
-
+      - name: report_date
+        description: "Date the report covers (derived from result.period_start)."
+        tests:
+          - not_null
+      - name: enqueue_at
+        description: "When the report was enqueued (from enqueue.created_at)."
+        tests:
+          - not_null
       - name: enqueue_status
         description: "Report job status from the enqueue (QUEUED, etc.). NULL when result has no matching enqueue."
 

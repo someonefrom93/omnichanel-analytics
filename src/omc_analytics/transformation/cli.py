@@ -21,6 +21,13 @@ def silver_group() -> None:
 
 @silver_group.command(name="run-silver")
 @click.option(
+    "--env",
+    type=click.Choice(["dev", "staging", "prod"]),
+    default="dev",
+    show_default=True,
+    help="Target environment (selects the dbt profile target and S3 bucket).",
+)
+@click.option(
     "--select",
     multiple=True,
     help="dbt --select models to build (repeatable). Default: all silver models.",
@@ -37,11 +44,10 @@ def silver_group() -> None:
     show_default=True,
 )
 def run_silver_cmd(
-    select: tuple[str, ...], merchant_id: str | None, profiles_dir: Path
+    env: str, select: tuple[str, ...], merchant_id: str | None, profiles_dir: Path
 ) -> None:
     """Run dbt build for the Silver layer."""
-    # PR1-style: InMemoryLogs by default; real LogsPort integration is
-    # wired in via env in a follow-up.
+    os.environ["OMCAE_DBT_TARGET"] = env
     logs = InMemoryLogs()
     result = run_dbt_build(
         project_dir=DBT_PROJECT,

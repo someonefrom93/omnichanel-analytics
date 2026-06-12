@@ -64,6 +64,8 @@ joined as (
     select
         e.jobId as job_id,
         r.result.store_id as merchant_id,
+        cast(r.result.period_start as date) as report_date,
+        cast(e.created_at as timestamp) as enqueue_at,
         e.status as enqueue_status,
         r.status as result_status,
         r.result.period_start as result_period_start,
