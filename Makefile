@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-integration lint typecheck format check clean
+.PHONY: test test-unit test-integration lint typecheck format check clean silver
 
 test: test-unit
 	@echo "All unit tests passed."
@@ -19,3 +19,6 @@ format:
 	uv run black src/ tests/
 
 check: lint typecheck test
+
+silver:  ## Run dbt build for the Silver layer
+	uv run dbt build --project-dir dbt_project

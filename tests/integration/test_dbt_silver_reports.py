@@ -27,8 +27,12 @@ import pytest
 from moto import mock_aws
 
 REPO_ROOT = Path(__file__).parent.parent.parent
-ENQUEUE_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "otter" / "reports_enqueue_response.json"
-RESULT_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "otter" / "reports_result_ready.json"
+ENQUEUE_FIXTURE = (
+    REPO_ROOT / "tests" / "fixtures" / "otter" / "reports_enqueue_response.json"
+)
+RESULT_FIXTURE = (
+    REPO_ROOT / "tests" / "fixtures" / "otter" / "reports_result_ready.json"
+)
 DBT_PROJECT = REPO_ROOT / "dbt_project"
 
 BRONZE_BUCKET = "ofae-data-lakehouse-bronze-dev"
@@ -125,19 +129,23 @@ def test_silver_reports_e2e_with_moto_s3(tmp_path: Path) -> None:
             pass  # Bucket may already exist
 
         # Write enqueue fixture to moto S3
-        enqueue_body = json.dumps({
-            k: v
-            for k, v in json.loads(ENQUEUE_FIXTURE.read_text()).items()
-            if k not in ("source", "version", "endpoint")
-        })
+        enqueue_body = json.dumps(
+            {
+                k: v
+                for k, v in json.loads(ENQUEUE_FIXTURE.read_text()).items()
+                if k not in ("source", "version", "endpoint")
+            }
+        )
         s3.put_object(Bucket=BRONZE_BUCKET, Key=ENQUEUE_KEY, Body=enqueue_body)
 
         # Write result fixture to moto S3
-        result_body = json.dumps({
-            k: v
-            for k, v in json.loads(RESULT_FIXTURE.read_text()).items()
-            if k not in ("source", "version", "endpoint")
-        })
+        result_body = json.dumps(
+            {
+                k: v
+                for k, v in json.loads(RESULT_FIXTURE.read_text()).items()
+                if k not in ("source", "version", "endpoint")
+            }
+        )
         s3.put_object(Bucket=BRONZE_BUCKET, Key=RESULT_KEY, Body=result_body)
 
         # Set up temp DuckDB and profile
@@ -177,9 +185,9 @@ ofae_analytics:
         enqueue_count = con.execute(
             "SELECT COUNT(*) FROM bronze.reports_enqueue"
         ).fetchone()[0]
-        assert enqueue_count == 1, (
-            f"Expected 1 row in bronze.reports_enqueue, got {enqueue_count}"
-        )
+        assert (
+            enqueue_count == 1
+        ), f"Expected 1 row in bronze.reports_enqueue, got {enqueue_count}"
 
         # Fetch result fixture from moto S3 via boto3
         local_result_path = _fetch_fixture_from_moto(
@@ -195,9 +203,9 @@ ofae_analytics:
         result_count = con.execute(
             "SELECT COUNT(*) FROM bronze.reports_result"
         ).fetchone()[0]
-        assert result_count == 1, (
-            f"Expected 1 row in bronze.reports_result, got {result_count}"
-        )
+        assert (
+            result_count == 1
+        ), f"Expected 1 row in bronze.reports_result, got {result_count}"
         con.close()
 
         # Run dbt build via dbtRunner
@@ -221,9 +229,7 @@ ofae_analytics:
         # Verify the silver_reports table
         con = duckdb.connect(str(duckdb_path))
         try:
-            row_count = con.execute(
-                "SELECT COUNT(*) FROM silver_reports"
-            ).fetchone()[0]
+            row_count = con.execute("SELECT COUNT(*) FROM silver_reports").fetchone()[0]
 
             assert row_count == 1, (
                 f"Expected 1 row in silver_reports "
@@ -250,8 +256,12 @@ ofae_analytics:
                 "FROM silver_reports"
             ).fetchone()
 
-            assert row[0] == "job_abc123", f"job_id: expected 'job_abc123', got {row[0]}"
-            assert row[1] == "store_001", f"merchant_id: expected 'store_001', got {row[1]}"
+            assert (
+                row[0] == "job_abc123"
+            ), f"job_id: expected 'job_abc123', got {row[0]}"
+            assert (
+                row[1] == "store_001"
+            ), f"merchant_id: expected 'store_001', got {row[1]}"
             assert row[2] == "READY", f"result_status: expected 'READY', got {row[2]}"
             assert row[3] == 12500, f"gross_sales_amount: expected 12500, got {row[3]}"
             assert row[4] == 8750, f"net_payout_amount: expected 8750, got {row[4]}"

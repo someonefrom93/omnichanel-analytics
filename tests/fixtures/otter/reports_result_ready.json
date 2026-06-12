@@ -2,6 +2,7 @@
   "source": "redoc-sample",
   "version": "1.0",
   "endpoint": "GET /v1/reports/{jobId}",
+  "jobId": "job_abc123",
   "status": "READY",
   "result": {
     "store_id": "store_001",

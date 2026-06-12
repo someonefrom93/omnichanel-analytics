@@ -92,12 +92,12 @@ class TestDbtCompileWithSilverReports:
             "This model is required for PR3b silver_reports."
         )
         content = model_file.read_text()
-        assert "unique_key" in content, (
-            "silver_reports.sql must define unique_key in the config block."
-        )
-        assert "job_id" in content, (
-            "unique_key must be 'job_id' per spec §Materialization."
-        )
+        assert (
+            "unique_key" in content
+        ), "silver_reports.sql must define unique_key in the config block."
+        assert (
+            "job_id" in content
+        ), "unique_key must be 'job_id' per spec §Materialization."
         # Must have a join CTE between enqueue and result sources
         assert (
             "enqueue" in content.lower() and "result" in content.lower()
@@ -114,13 +114,15 @@ class TestDbtCompileWithSilverReports:
             "This schema file is required for PR3b silver_reports."
         )
         content = schema_file.read_text()
-        assert "job_id" in content, "job_id column must be defined in silver_reports.yml"
-        assert "not_null" in content, (
-            "silver_reports.yml must define not_null test on job_id per spec §dbt Tests."
-        )
-        assert "unique" in content, (
-            "silver_reports.yml must define unique test on job_id per spec §dbt Tests."
-        )
+        assert (
+            "job_id" in content
+        ), "job_id column must be defined in silver_reports.yml"
+        assert (
+            "not_null" in content
+        ), "silver_reports.yml must define not_null test on job_id per spec §dbt Tests."
+        assert (
+            "unique" in content
+        ), "silver_reports.yml must define unique test on job_id per spec §dbt Tests."
 
     def test_dbt_compile_with_silver_reports_succeeds(self, tmp_path: Path) -> None:
         """dbt compile must succeed when silver_reports model is present.

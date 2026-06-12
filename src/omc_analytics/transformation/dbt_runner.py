@@ -66,12 +66,26 @@ def run_dbt_build(
     run_id = uuid.uuid4()
     started_at = datetime.now(UTC)
     if logs_port is not None:
-        logs_port.insert_started(RunLog(
-            id=run_id, merchant_id=merchant_id or "n/a", run_id=run_id,
-            pipeline_name=pipeline_name, status="STARTED",
-            started_at=started_at, finished_at=None, error_class=None, error_message=None,
-        ))
-    args = ["build", "--project-dir", str(project_dir), "--profiles-dir", str(profiles_dir)]
+        logs_port.insert_started(
+            RunLog(
+                id=run_id,
+                merchant_id=merchant_id or "n/a",
+                run_id=run_id,
+                pipeline_name=pipeline_name,
+                status="STARTED",
+                started_at=started_at,
+                finished_at=None,
+                error_class=None,
+                error_message=None,
+            )
+        )
+    args = [
+        "build",
+        "--project-dir",
+        str(project_dir),
+        "--profiles-dir",
+        str(profiles_dir),
+    ]
     if select:
         args.extend(["--select", " ".join(select)])
     if vars:

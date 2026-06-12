@@ -48,12 +48,12 @@ Chain strategy: pending
 
 ## Phase 5: Integration Test
 
-- [ ] 5.1 **Write integration test** — Follow PR3a pattern: moto S3 + fixture seeding (`reports_enqueue_response.json`, `reports_result_ready.json`) → `dbtRunner` in-process → DuckDB query assertions (row count=1, `job_id='job_abc123'`, amounts 12500/8750). Mark `@pytest.mark.integration`. Use `OMCAE_USE_LOCAL_BRONZE=true` workaround for moto. Files: `tests/integration/test_dbt_silver_reports.py`. Spec: ADDED §Integration Test. Design: §Testing Strategy. *Done when: `pytest -m integration tests/integration/test_dbt_silver_reports.py` green.*
+- [x] 5.1 **Write integration test** — Follow PR3a pattern: moto S3 + fixture seeding (`reports_enqueue_response.json`, `reports_result_ready.json`) → `dbtRunner` in-process → DuckDB query assertions (row count=1, `job_id='job_abc123'`, amounts 12500/8750). Mark `@pytest.mark.integration`. Use `OMCAE_USE_LOCAL_BRONZE=true` workaround for moto. Files: `tests/integration/test_dbt_silver_reports.py`. Spec: ADDED §Integration Test. Design: §Testing Strategy. *Done when: `pytest -m integration tests/integration/test_dbt_silver_reports.py` green.*
 
 ## Phase 6: Polish
 
-- [ ] 6.1 **Update Makefile** — Add `silver-reports` target: `uv run omc-ingest silver run-silver --merchant-id $$MERCHANT_ID --env dev`. Files: `Makefile`. *Done when: `make help` shows target.*
+- [x] 6.1 **Update Makefile** — Add `silver` target: `uv run dbt build --project-dir dbt_project`. Files: `Makefile`. *Done when: `make help` shows target.*
 
-- [ ] 6.2 **Update README** — Add "Silver Reports" subsection with model description, `omc-ingest run-silver` usage, local run instructions. Files: `README.md`. *Done when: subsection present.*
+- [x] 6.2 **Update README** — Add "Silver Reports" subsection with model description, `omc-ingest run-silver` usage, and local run instructions. Files: `README.md`. *Done when: subsection present.*
 
-- [ ] 6.3 **Lint + type check** — `uv run ruff check`, `uv run mypy src/omc_analytics/transformation/`, `uv run pytest -m "not integration"`. Files: all. *Done when: all gates green.*
+- [x] 6.3 **Lint + type check** — `uv run ruff check`, `uv run mypy src/omc_analytics/transformation/`, `uv run pytest -m "not integration"`. Files: all. *Done when: all gates green.*

@@ -6,8 +6,6 @@ import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestDbtLoggingHandler:
     """Unit tests for the _dbt_logging_handler context manager."""
@@ -23,9 +21,9 @@ class TestDbtLoggingHandler:
         with _dbt_logging_handler():
             # Should have exactly one more handler while inside context
             during = len(dbt_logger.handlers)
-            assert during == before + 1, (
-                f"Expected {before + 1} handlers during context, got {during}"
-            )
+            assert (
+                during == before + 1
+            ), f"Expected {before + 1} handlers during context, got {during}"
 
         # After exiting, handler count returns to before
         after = len(dbt_logger.handlers)
@@ -47,7 +45,9 @@ class TestRunDbtBuild:
         mock_result = MagicMock()
         mock_result.success = True
 
-        with patch("omc_analytics.transformation.dbt_runner.dbtRunner") as mock_runner_cls:
+        with patch(
+            "omc_analytics.transformation.dbt_runner.dbtRunner"
+        ) as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner.invoke.return_value = mock_result
             mock_runner_cls.return_value = mock_runner
@@ -74,7 +74,9 @@ class TestRunDbtBuild:
 
         logs = InMemoryLogs()
 
-        with patch("omc_analytics.transformation.dbt_runner.dbtRunner") as mock_runner_cls:
+        with patch(
+            "omc_analytics.transformation.dbt_runner.dbtRunner"
+        ) as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner.invoke.side_effect = RuntimeError("dbt runner failed")
             mock_runner_cls.return_value = mock_runner
@@ -93,7 +95,7 @@ class TestRunDbtBuild:
         rows = logs.get_all()
         assert len(rows) == 1, f"Expected 1 log row, got {len(rows)}"
         assert rows[0].status == "FAILED", f"Expected FAILED, got {rows[0].status}"
-        assert rows[0].error_class == "RuntimeError", (
-            f"Expected error_class='RuntimeError', got {rows[0].error_class!r}"
-        )
+        assert (
+            rows[0].error_class == "RuntimeError"
+        ), f"Expected error_class='RuntimeError', got {rows[0].error_class!r}"
         assert rows[0].error_message is not None, "Expected error_message on FAILED"

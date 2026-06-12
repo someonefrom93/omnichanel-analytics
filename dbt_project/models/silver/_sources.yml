@@ -47,6 +47,8 @@ sources:
             description: "API schema version."
           - name: endpoint
             description: "Otter API endpoint path."
+          - name: jobId
+            description: "Otter's report job identifier (extracted from the endpoint URL in production; present as top-level field in fixtures)."
           - name: status
             description: "Report job status (READY, FAILED, CANCELLED)."
           - name: result

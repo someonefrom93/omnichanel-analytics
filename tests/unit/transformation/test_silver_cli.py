@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from click.testing import CliRunner
 
@@ -15,18 +14,18 @@ def test_run_silver_cmd_help() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["silver", "run-silver", "--help"])
 
-    assert result.exit_code == 0, (
-        f"Expected exit 0, got {result.exit_code}: {result.output}"
-    )
-    assert "run-silver" in result.output, (
-        f"Expected 'run-silver' in help output, got: {result.output}"
-    )
-    assert "--merchant-id" in result.output, (
-        f"Expected '--merchant-id' in help output, got: {result.output}"
-    )
-    assert "--select" in result.output, (
-        f"Expected '--select' in help output, got: {result.output}"
-    )
+    assert (
+        result.exit_code == 0
+    ), f"Expected exit 0, got {result.exit_code}: {result.output}"
+    assert (
+        "run-silver" in result.output
+    ), f"Expected 'run-silver' in help output, got: {result.output}"
+    assert (
+        "--merchant-id" in result.output
+    ), f"Expected '--merchant-id' in help output, got: {result.output}"
+    assert (
+        "--select" in result.output
+    ), f"Expected '--select' in help output, got: {result.output}"
 
 
 def test_run_silver_cmd_runs(mock_dbt_runner: MagicMock) -> None:
@@ -46,12 +45,12 @@ def test_run_silver_cmd_runs(mock_dbt_runner: MagicMock) -> None:
         ],
     )
 
-    assert result.exit_code == 0, (
-        f"Expected exit 0, got {result.exit_code}: {result.output}"
-    )
-    assert "succeeded" in result.output, (
-        f"Expected 'succeeded' in output, got: {result.output}"
-    )
+    assert (
+        result.exit_code == 0
+    ), f"Expected exit 0, got {result.exit_code}: {result.output}"
+    assert (
+        "succeeded" in result.output
+    ), f"Expected 'succeeded' in output, got: {result.output}"
 
 
 def test_run_silver_cmd_profiles_dir_env_default(mock_dbt_runner: MagicMock) -> None:
@@ -69,6 +68,6 @@ def test_run_silver_cmd_profiles_dir_env_default(mock_dbt_runner: MagicMock) -> 
         ],
     )
 
-    assert result.exit_code == 0, (
-        f"Expected exit 0, got {result.exit_code}: {result.output}"
-    )
+    assert (
+        result.exit_code == 0
+    ), f"Expected exit 0, got {result.exit_code}: {result.output}"

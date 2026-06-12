@@ -145,13 +145,26 @@ OMCAE_DBT_TARGET=prod OMCAE_BRONZE_PATH=s3://ofae-data-lakehouse-bronze-prod/ott
   uv run dbt build --project-dir dbt_project
 ```
 
+Via the CLI (`omc-ingest silver run-silver`):
+
+```bash
+# Run all Silver models
+omc-ingest silver run-silver
+
+# Run only silver_reports
+omc-ingest silver run-silver --select silver_reports
+```
+
 Models:
 
 - `silver_orders` (incremental+merge, unique on `(order_id, source_marketplace)`).
   One row per Otter order line item. Includes PII columns as raw SHA-256
   (no salt yet — PR4 will add the salt and re-materialize via
   `dbt run --full-refresh`).
-- `silver_reports` (PR3b): one row per Otter report job.
+- `silver_reports` (PR3b): one row per Otter report job, joining
+  `bronze.reports_enqueue` and `bronze.reports_result` by `job_id`.
+  Exposes `gross_sales_amount`, `net_payout_amount`, and `result_status`
+  (READY/FAILED/CANCELLED).
 
 Data quality tests per PRD §5.3:
 
