@@ -44,25 +44,30 @@ The system MUST materialize `silver_orders` as `incremental+merge` with composit
 - THEN ord_001 is merge-updated in place and no duplicate rows exist
 
 ### Requirement: silver_orders Column Contract
-The model MUST output: `order_id`, `source_marketplace`, `merchant_id`, `created_at`,
-`total_amount`, `total_currency`, `line_item_sku`, `line_item_name`, `line_item_qty`,
-`line_item_unit_price`, `line_item_unit_currency`, `customer_name_hash` (raw copy,
-NOT salted), `customer_phone_hash` (raw copy, NOT salted). PII salting is deferred to PR4.
+The model MUST output: `order_id`, `source_marketplace`, `merchant_id`,
+`created_at`, `total_amount`, `total_currency`, `line_item_sku`, `line_item_name`,
+`line_item_qty`, `line_item_unit_price`, `line_item_unit_currency`,
+`customer_name_hash` (raw copy, NOT salted), `customer_phone_hash` (raw copy, NOT salted),
+`customer_name_hash_salted` (PR4a salted), `customer_phone_hash_salted` (PR4a salted).
+(Previously: 13 columns, no salted PII columns.)
 
-#### Scenario: All 13 columns present with snake_case names
+#### Scenario: All 15 columns present with snake_case names
 - GIVEN `dbt build` completes for `silver_orders`
 - WHEN the Parquet output is queried
-- THEN all columns exist with snake_case names
+- THEN all 15 columns exist with snake_case names
 - AND `customer_name_hash` matches the source `customer.name_hash` byte-for-byte
+- AND `customer_name_hash_salted` and `customer_phone_hash_salted` are non-null
 
 ### Requirement: dbt Tests on silver_orders
-The system MUST run `not_null` on `order_id`, `source_marketplace`, `total_amount`
-and `unique` composite on `(order_id, source_marketplace)`.
+The system MUST run `not_null` on `order_id`, `source_marketplace`, `total_amount`,
+`customer_name_hash_salted`, `customer_phone_hash_salted` and `unique` composite on
+`(order_id, source_marketplace)`. (Previously: only `order_id`, `source_marketplace`,
+`total_amount` had not_null; PR4a adds salted columns.)
 
 #### Scenario: All built-in tests pass on valid fixture data
 - GIVEN `silver_orders` materialized from the PR1 `orders_response.json` fixture
 - WHEN `dbt test --select silver_orders` runs
-- THEN all `not_null` and composite `unique` tests exit 0
+- THEN all `not_null` (including 2 salted columns) and composite `unique` tests exit 0
 
 #### Scenario: Null total_amount causes hard failure
 - GIVEN a Bronze order where `total.amount` is null
