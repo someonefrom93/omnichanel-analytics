@@ -23,13 +23,12 @@ per-table `external_location` glob matching their respective filename patterns.
 ### Requirement: silver_reports Materialization
 The system MUST materialize `silver_reports` as `incremental+merge` with scalar
 `unique_key='job_id'`, producing one Parquet row per Otter async report job. The model
-MUST join `bronze.reports_enqueue` and `bronze.reports_result` by
-`run_timestamp_utc` extracted from the `_filename` virtual column using the existing
-`parse_bronze_filename` macro.
+MUST join `bronze.reports_enqueue` and `bronze.reports_result` by the `jobId` field
+(internally cast to `job_id`), matching each enqueue to its result payload.
 
-#### Scenario: One row per job_id from matching filenames
-- GIVEN Bronze holds `reports_enqueue-20260610T120000Z.json` (jobId=`job_abc123`) and
-  `reports_result-20260610T120000Z.json` (status=`READY`, totals present)
+#### Scenario: One row per job_id from matching jobId values
+- GIVEN Bronze holds a `reports_enqueue-*.json` row with `jobId=job_abc123` and
+  a `reports_result-*.json` row with the same `jobId=job_abc123`
 - WHEN `dbt run --select silver_reports` executes
 - THEN the Silver table has exactly 1 row with `job_id='job_abc123'`
 
@@ -39,22 +38,23 @@ MUST join `bronze.reports_enqueue` and `bronze.reports_result` by
 - THEN `job_abc123` is merge-updated in place and no duplicate rows exist
 
 ### Requirement: silver_reports Column Contract
-The model MUST output 11 columns: `job_id`, `merchant_id`, `report_date`, `enqueue_at`,
-`result_status`, `result_period_start`, `result_period_end`, `gross_sales_amount`,
-`gross_sales_currency`, `net_payout_amount`, `net_payout_currency`. All amounts SHALL
-be BIGINT in minor currency units; currency codes SHALL be `VARCHAR(3)`.
+The model MUST output 12 columns: `job_id`, `merchant_id`, `report_date`, `enqueue_at`,
+`enqueue_status`, `result_status`, `result_period_start`, `result_period_end`,
+`gross_sales_amount`, `gross_sales_currency`, `net_payout_amount`,
+`net_payout_currency`. All amounts SHALL be BIGINT in minor currency units; currency
+codes SHALL be `VARCHAR(3)`.
 
-#### Scenario: All 11 columns present with correct types
+#### Scenario: All 12 columns present with correct types
 - GIVEN `dbt build` completes for `silver_reports`
 - WHEN the Parquet output is queried
-- THEN all 11 columns exist with snake_case names
+- THEN all 12 columns exist with snake_case names
 - AND `gross_sales_amount` is typed as BIGINT
 - AND `net_payout_currency` is typed as VARCHAR
 
 ### Requirement: dbt Tests on silver_reports
-The system MUST run `not_null` on `job_id`, `result_status`, `gross_sales_amount`,
-`net_payout_amount`; `unique` on `job_id`; and a custom singular test asserting 0
-rows where `result_status='WARN'`.
+The system MUST run `not_null` on `job_id`, `merchant_id`, `report_date`, `enqueue_at`,
+`result_status`, `gross_sales_amount`, `net_payout_amount`; `unique` on `job_id`; and a
+custom singular test asserting 0 rows where `result_status='WARN'`.
 
 #### Scenario: All tests pass on valid data
 - GIVEN `silver_reports` materialized from the reports fixtures
@@ -90,7 +90,8 @@ around `dbtRunner` that resolves `--project-dir` and `--profiles-dir`, accepts a
 ### Requirement: omc-ingest run-silver CLI
 The system MUST expose a Click `silver` sub-group attached to the existing `cli` group
 in `src/omc_analytics/ingestion/run.py`, with a `run-silver` command accepting
-`--merchant-id`, `--env`, and optional `--select`.
+`--merchant-id`, `--env` (default `dev`, choices `["dev","staging","prod"]`), and
+optional `--select`.
 
 #### Scenario: Successful invocation exits 0
 - GIVEN valid dbt project and temp DuckDB
@@ -119,8 +120,8 @@ A pytest integration test MUST run `dbt build --select +silver_reports` via
 (Previously: SCN-014 defined the `build_bronze_key` for reports writes only.)
 
 The Bronze path contract for `reports_enqueue-{ts}.json` and `reports_result-{ts}.json`
-is now consumed downstream by dbt sources. Both share the same `run_timestamp_utc`
-suffix per ingestion run, enabling a filename-based join in `silver_reports`.
+is now consumed downstream by dbt sources. The join in `silver_reports` uses the
+`jobId` field from both sources to match enqueue to result.
 
 #### Scenario: dbt source globs match reports patterns
 - GIVEN the extended `_sources.yml` with per-table globs
