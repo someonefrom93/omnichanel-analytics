@@ -47,23 +47,59 @@
   as NULL for PR3a; PR4 will wire it from the filename parse.
 */
 
+{#
+  DEVIATION (PR3a): silver_orders reads directly from the pre-created
+  bronze.orders DuckDB table rather than from {{ source('bronze', 'orders') }}.
+
+  The source abstraction via external_location does not work with dbt-duckdb's
+  S3 handling at runtime: the compiled SQL uses read_json_auto('s3://...')
+  which DuckDB cannot execute without AWS credentials configured for httpfs.
+  moto S3 only mocks boto3, not DuckDB's S3 calls.
+
+  For the integration test (moto S3 + dbtRunner), we pre-create bronze.orders
+  in DuckDB using the fixture file, then override OMCAE_USE_BRICK below to
+  make this model read from the local table. In production, PR3b will handle
+  proper S3-based bronze sourcing via a different mechanism.
+
+  This deviation is documented in the apply-progress artifact.
+#}
+
+{%
+set use_local_bronze = env_var('OMCAE_USE_LOCAL_BRONZE', 'false')
+%}
+
+{%
+set source_query
+%}
+
+{% if use_local_bronze == 'true' %}
+  select * from bronze.orders
+{% else %}
+  {# Production path: read from S3 via the bronze.orders source #}
+  select * from {{ source('bronze', 'orders') }}
+{% endif %}
+
+{%
+endset
+%}
+
 with source as (
-    select * from {{ source('bronze', 'orders') }}
+    {{ source_query }}
 ),
 
 -- Unnest the top-level orders array: one row per order object
 unnest_orders as (
     select
-        value:id::varchar as order_id,
-        value:channel::varchar as source_marketplace,
-        value:store_id::varchar as merchant_id,
-        value:created_at::timestamp as created_at,
-        value:total:amount::bigint as total_amount,
-        value:total:currency::varchar(3) as total_currency,
-        value:customer:name_hash::varchar as customer_name_hash,
-        value:customer:phone_hash::varchar as customer_phone_hash,
+        value.id::varchar as order_id,
+        value.channel::varchar as source_marketplace,
+        value.store_id::varchar as merchant_id,
+        value.created_at::timestamp as created_at,
+        value.total.amount::bigint as total_amount,
+        value.total.currency::varchar(3) as total_currency,
+        value.customer.name_hash::varchar as customer_name_hash,
+        value.customer.phone_hash::varchar as customer_phone_hash,
         -- Keep the full items array for the next unnest step
-        value:items::variant as items_array
+        value.items as items_array
     from source,
     LATERAL (select unnest(orders) as value)
 ),
@@ -83,8 +119,8 @@ unnest_items as (
         item.sku::varchar as line_item_sku,
         item.name::varchar as line_item_name,
         item.qty::integer as line_item_qty,
-        item.unit_price:amount::bigint as line_item_unit_price,
-        item.unit_price:currency::varchar(3) as line_item_unit_currency
+        item.unit_price.amount::bigint as line_item_unit_price,
+        item.unit_price.currency::varchar(3) as line_item_unit_currency
     from unnest_orders,
     LATERAL (select unnest(items_array) as item)
 ),

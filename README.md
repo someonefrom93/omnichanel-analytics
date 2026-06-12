@@ -127,6 +127,38 @@ days 1 and 3 still complete. The CLI exits with code 0 if all days
 succeed, or 1 if any day failed. Each day gets its own
 `pipeline_execution_logs` row (with the `run_id` and `target_date`).
 
+### Silver transformation
+
+The dbt project under `dbt_project/` materializes the Silver tier of the
+OFAE medallion. Each Silver model reads raw JSON from the Bronze S3 bucket
+(or local mirror in dev) and produces clean Parquet tables.
+
+Running:
+
+```bash
+# Local dev (uses local DuckDB file)
+OMCAE_DBT_TARGET=dev OMCAE_USE_LOCAL_BRONZE=true \
+  uv run dbt build --project-dir dbt_project
+
+# Production (reads S3 directly via DuckDB httpfs)
+OMCAE_DBT_TARGET=prod OMCAE_BRONZE_PATH=s3://ofae-data-lakehouse-bronze-prod/otter \
+  uv run dbt build --project-dir dbt_project
+```
+
+Models:
+
+- `silver_orders` (incremental+merge, unique on `(order_id, source_marketplace)`).
+  One row per Otter order line item. Includes PII columns as raw SHA-256
+  (no salt yet — PR4 will add the salt and re-materialize via
+  `dbt run --full-refresh`).
+- `silver_reports` (PR3b): one row per Otter report job.
+
+Data quality tests per PRD §5.3:
+
+- `not_null` on `order_id`, `source_marketplace`, `total_amount`, and other revenue vars.
+- Composite `unique` on `(order_id, source_marketplace)`.
+- Custom data test: warn if any `total_amount` equals 0 (per PRD §5.3 anomaly policy).
+
 ## Architecture
 
 ```
@@ -144,9 +176,10 @@ CLI (Click)
 
 - [x] **PR2a** — KMSSecrets + PostgresLogs + Config wiring (DONE)
 - [x] **PR2b** — Backfill loop (`--backfill` flag, `compute_window_for_date`, `backfill_dates`) (DONE)
-- [ ] **PR3** — dbt Silver/Gold transformation layer
+- [x] **PR3a** — dbt Silver transformation (`silver_orders` model, `bronze.orders` source, 4 custom data tests, moto S3 integration harness) (DONE)
+- [ ] **PR3b** — `silver_reports` model + dbt runner CLI subcommand
+- [ ] PR4 — PII salted hashing + full-refresh re-materialization
 - [ ] Docker containerization and scheduled orchestration
 - [ ] End-to-end encrypted credential bootstrap flow
-- [ ] PII / COGS tracking
 - [ ] Streamlit UI
 - [ ] OAuth `authorization_code` flow, webhooks, cron

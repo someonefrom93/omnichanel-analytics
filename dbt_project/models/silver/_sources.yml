@@ -4,12 +4,16 @@ sources:
   - name: bronze
     description: "Raw Otter API data ingested into the Bronze S3 bucket (or local mirror in dev). One JSON file per Otter endpoint per (merchant, target_date, run_timestamp) tuple."
     meta:
-      external_location: "{{ env_var('OMCAE_BRONZE_PATH', 's3://ofae-data-lakehouse-bronze-{env}/otter') }}"
+      # DEVIATION (PR3a): external_location is set to a full read_json_auto
+      # expression because dbt-duckdb's default external_location handling
+      # does not wrap the path in read_json_auto. OMCAE_BRONZE_PATH must be
+      # set to the full S3 base path (e.g. s3://bucket/prefix) or a local
+      # mirror path. No {placeholder} syntax is used here to avoid format_map
+      # substitution issues in the adapter.
+      external_location: "read_json_auto('{{ env_var('OMCAE_BRONZE_PATH') }}/merchant_id=*/year=*/month=*/day=*/orders-*.json', format='auto')"
     tables:
       - name: orders
         description: "Otter /v1/orders response. Top-level `orders` array (one element per order) with nested `items` array (one element per line item)."
-        meta:
-          external_location: "merchant_id=*/year=*/month=*/day=*/orders-*.json"
         columns:
           - name: orders
             description: "Array of order objects from the Otter response."

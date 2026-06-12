@@ -25,7 +25,14 @@ def _dbt_cmd_with_env(
     if env:
         full_env.update(env)
     return subprocess.run(
-        ["dbt", *args, "--project-dir", str(DBT_PROJECT), "--profiles-dir", str(DBT_PROJECT)],
+        [
+            "dbt",
+            *args,
+            "--project-dir",
+            str(DBT_PROJECT),
+            "--profiles-dir",
+            str(DBT_PROJECT),
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -43,15 +50,16 @@ def test_dbt_compile_succeeds(tmp_path: Path) -> None:
     env = {
         "OMCAE_DBT_TARGET": "dev",
         "OMCAE_DUCKDB_PATH": str(tmp_path / "compile.duckdb"),
+        "OMCAE_BRONZE_PATH": "s3://ofae-data-lakehouse-bronze-dev/otter",
     }
     result = _dbt_cmd_with_env("compile", env=env)
     # dbt compile succeeds only if:
     # 1. All YAML files parse (no Jinja/template errors)
     # 2. All SQL macro files parse
     # 3. Source references resolve
-    assert result.returncode == 0, (
-        f"dbt compile failed:\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
-    )
+    assert (
+        result.returncode == 0
+    ), f"dbt compile failed:\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
 
 
 def test_parse_bronze_filename_macro_file_present() -> None:
@@ -64,6 +72,8 @@ def test_parse_bronze_filename_macro_file_present() -> None:
     assert macro_file.exists(), f"Macro file not found: {macro_file}"
     content = macro_file.read_text()
     assert "regexp_extract" in content, "Macro must use regexp_extract for DuckDB"
-    assert "STRUCT_PACK" in content, "Macro must use STRUCT_PACK for struct construction"
+    assert (
+        "STRUCT_PACK" in content
+    ), "Macro must use STRUCT_PACK for struct construction"
     assert "target_date" in content, "Macro must output target_date field"
     assert "run_timestamp_utc" in content, "Macro must output run_timestamp_utc field"
