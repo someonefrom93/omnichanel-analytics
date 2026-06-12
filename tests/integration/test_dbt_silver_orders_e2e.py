@@ -270,3 +270,97 @@ ofae_analytics:
 
         finally:
             con.close()
+
+
+@pytest.mark.integration
+def test_silver_orders_idempotent_on_rerun(tmp_path: Path) -> None:
+    """Run silver_orders twice against the same seed — row count invariant.
+
+    Validates the incremental+merge idempotency contract: re-running
+    dbt build with identical Bronze data must not duplicate rows.
+    """
+    with mock_aws():
+        s3 = boto3.client("s3", region_name="us-east-1")
+
+        try:
+            s3.create_bucket(Bucket=BRONZE_BUCKET)
+        except Exception:
+            pass
+
+        fixture_raw = json.loads(FIXTURE.read_text())
+        fixture_body = json.dumps(
+            {
+                k: v
+                for k, v in fixture_raw.items()
+                if k not in ("source", "version", "endpoint")
+            }
+        )
+        s3.put_object(Bucket=BRONZE_BUCKET, Key=BRONZE_KEY, Body=fixture_body)
+
+        duckdb_path = tmp_path / "silver_idem.duckdb"
+        profiles_dir = tmp_path / "dbt_profiles"
+        profiles_dir.mkdir()
+
+        profile_content = f"""
+ofae_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: '{duckdb_path}'
+      threads: 1
+"""
+        (profiles_dir / "profiles.yml").write_text(profile_content)
+
+        moto_fetch_dir = tmp_path / "moto_fetch"
+        moto_fetch_dir.mkdir()
+
+        # Pre-seed bronze.orders (same pattern as e2e test)
+        con = duckdb.connect(str(duckdb_path))
+        con.execute("CREATE SCHEMA IF NOT EXISTS bronze")
+        local_fixture_path = _fetch_fixture_from_moto(
+            s3, BRONZE_BUCKET, BRONZE_KEY, moto_fetch_dir
+        )
+        con.execute(
+            f"""
+            CREATE OR REPLACE TABLE bronze.orders AS
+            SELECT * FROM read_json_auto('{local_fixture_path}', format='auto')
+        """
+        )
+        con.close()
+
+        extra_env = {
+            "OMCAE_DBT_TARGET": "dev",
+            "OMCAE_DUCKDB_PATH": str(duckdb_path),
+            "OMCAE_USE_LOCAL_BRONZE": "true",
+            "OMCAE_BRONZE_PATH": "s3://ofae-data-lakehouse-bronze-dev/otter",
+        }
+
+        # First run
+        success1, exc1 = _dbt_via_dbtRunner(
+            DBT_PROJECT, profiles_dir, extra_env=extra_env
+        )
+        assert success1, f"First dbt build failed: {exc1}"
+
+        con = duckdb.connect(str(duckdb_path))
+        first_count = con.execute(
+            "SELECT COUNT(*) FROM silver_orders"
+        ).fetchone()[0]
+        con.close()
+
+        # Second run — same database, same seed
+        success2, exc2 = _dbt_via_dbtRunner(
+            DBT_PROJECT, profiles_dir, extra_env=extra_env
+        )
+        assert success2, f"Second dbt build failed: {exc2}"
+
+        con = duckdb.connect(str(duckdb_path))
+        second_count = con.execute(
+            "SELECT COUNT(*) FROM silver_orders"
+        ).fetchone()[0]
+        con.close()
+
+        assert first_count == second_count, (
+            f"Idempotency violation: first run={first_count}, "
+            f"second run={second_count}"
+        )

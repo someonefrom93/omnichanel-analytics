@@ -367,7 +367,8 @@ def run_bronze_with_backfill(ctx: RunContext) -> int:
     log row with error_class and error_message, then continue.
 
     Returns 0 if all iterations succeeded; 1 if any failed.
-    The caller (CLI) should propagate this exit code to the OS.
+    The CLI handler (line ~618) propagates this to the OS via
+    ``sys.exit(return_code)``.
     """
     if not ctx.backfill:
         # backfill=False: run once with T-1 behavior (same as run_bronze_impl)

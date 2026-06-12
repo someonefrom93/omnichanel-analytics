@@ -200,6 +200,50 @@ class TestPostgresLogsPoolBehavior:
         assert result == row.run_id
         mock_pool.putconn.assert_called_once_with(mock_conn)
 
+    def test_update_finished_wraps_psycopg2_error(self) -> None:
+        """update_finished wraps psycopg2.Error as PostgresLogsError + putconn."""
+        import psycopg2
+        import psycopg2.pool
+
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = psycopg2.Error("simulated SQL error")
+        mock_conn.cursor.return_value = mock_cursor
+
+        mock_pool = MagicMock()
+        mock_pool.getconn.return_value = mock_conn
+        mock_pool.putconn = MagicMock()
+
+        with patch.object(
+            psycopg2.pool, "ThreadedConnectionPool", return_value=mock_pool
+        ):
+            logs = PostgresLogs(connection_factory=MagicMock())
+            with pytest.raises(PostgresLogsError):
+                logs.update_finished(uuid.uuid4(), "SUCCESS", None, None)
+
+        mock_pool.putconn.assert_called_once_with(mock_conn)
+
+    def test_acquire_releases_connection_on_exception(self) -> None:
+        """_acquire releases conn (putconn) even when cursor() itself raises."""
+        import psycopg2
+        import psycopg2.pool
+
+        mock_conn = MagicMock()
+        mock_conn.cursor.side_effect = psycopg2.Error("simulated cursor error")
+
+        mock_pool = MagicMock()
+        mock_pool.getconn.return_value = mock_conn
+        mock_pool.putconn = MagicMock()
+
+        with patch.object(
+            psycopg2.pool, "ThreadedConnectionPool", return_value=mock_pool
+        ):
+            logs = PostgresLogs(connection_factory=MagicMock())
+            with pytest.raises(PostgresLogsError):
+                logs.insert_started(_make_run_log())
+
+        mock_pool.putconn.assert_called_once_with(mock_conn)
+
 
 # ---------------------------------------------------------------------------
 # Parametrization: run shared tests against SQLiteLogs
