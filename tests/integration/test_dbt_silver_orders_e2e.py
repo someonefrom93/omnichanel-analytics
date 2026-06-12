@@ -213,7 +213,7 @@ ofae_analytics:
         )
 
         assert success, (
-            f"dbt build failed for silver_orders.\n" f"Exception: {exception_msg}"
+            f"dbt build failed for silver_orders.\nException: {exception_msg}"
         )
 
         # Verify the Silver table
