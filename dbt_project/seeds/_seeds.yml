@@ -1,0 +1,18 @@
+version: 2
+
+seeds:
+  - name: merchant_cogs_seed
+    description: "Stub COGS data for the Gold star schema. One row per (merchant_id, line_item_sku) combo with recipe and packaging costs. PR5 replaces this seed with a real PostgreSQL table."
+    columns:
+      - name: merchant_id
+        description: "Restaurant identifier matching silver_orders.merchant_id."
+        tests:
+          - not_null
+      - name: line_item_sku
+        description: "SKU matching silver_orders.line_item_sku."
+        tests:
+          - not_null
+      - name: recipe_cost
+        description: "Recipe cost in minor units (e.g. cents). Defaults to 0 when absent in join."
+      - name: packaging_cost
+        description: "Packaging cost in minor units (e.g. cents). Defaults to 0 when absent in join."

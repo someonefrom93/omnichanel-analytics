@@ -1,0 +1,7 @@
+merchant_id,line_item_sku,recipe_cost,packaging_cost
+store_001,BURGER_CLASSIC,800,100
+store_001,FRIES_MEDIUM,300,50
+store_001,COLA_LARGE,150,30
+store_001,SALAD_CAESAR,600,80
+store_002,BURGER_CLASSIC,850,110
+store_002,FRIES_LARGE,350,55

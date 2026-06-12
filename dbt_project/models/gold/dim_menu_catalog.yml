@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: dim_menu_catalog
+    description: "SKU dimension table. One row per unique (merchant_id, line_item_sku) combo discovered in silver_orders. Materialized as incremental+merge. Feeds fact_financial_sales and the PR5 Menu Engineering Matrix."
+    columns:
+      - name: merchant_id
+        description: "Restaurant identifier from silver_orders."
+        tests:
+          - not_null
+      - name: line_item_sku
+        description: "SKU of the line item."
+        tests:
+          - not_null
+      - name: line_item_name
+        description: "Most common human-readable name for this SKU (MIN across orders)."
+      - name: first_seen_at
+        description: "Earliest created_at timestamp where this SKU appeared."
+      - name: last_seen_at
+        description: "Latest created_at timestamp where this SKU appeared (updates on merge)."

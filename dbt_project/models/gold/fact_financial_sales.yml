@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: fact_financial_sales
+    description: "Gold fact table — one row per order line item with computed margin. Joins silver_orders (source of truth), dim_menu_catalog (SKU enrichment), and merchant_cogs_seed (stub COGS). Materialized as incremental+merge with 4-column composite PK. PR5 UI queries this for the Profit Leakage chart and Menu Engineering Matrix."
+    columns:
+      - name: merchant_id
+        description: "Restaurant identifier."
+        tests:
+          - not_null
+      - name: order_id
+        description: "Otter's order identifier."
+        tests:
+          - not_null
+      - name: source_marketplace
+        description: "Channel the order came from."
+        tests:
+          - not_null
+      - name: line_item_sku
+        description: "SKU of this line item."
+        tests:
+          - not_null
+      - name: created_at
+        description: "Order created_at timestamp from silver_orders."
+      - name: gross_order_value
+        description: "Order total in minor units (e.g. cents) — copied from silver_orders.total_amount."
+      - name: estimated_marketplace_commission
+        description: "Estimated commission = gross × commission_rate (default 15%). Configurable via var('commission_rate')."
+      - name: calculated_recipe_cogs
+        description: "Recipe cost from merchant_cogs_seed. 0 when SKU has no COGS row."
+      - name: packaging_cost
+        description: "Packaging cost from merchant_cogs_seed. 0 when SKU has no COGS row."
+      - name: true_net_payout_margin
+        description: "Net margin = gross_order_value - estimated_marketplace_commission - calculated_recipe_cogs - packaging_cost."

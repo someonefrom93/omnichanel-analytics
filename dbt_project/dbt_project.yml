@@ -29,6 +29,10 @@ vars:
   # Set via OMCAE_PII_SALT env var at build time.
   # Per-merchant salt via SecretsPort is PR5.
   pii_salt: "{{ env_var('OMCAE_PII_SALT') }}"
+  # PR4b: Default marketplace commission rate (15%).
+  # Configurable via --vars 'commission_rate: 0.20' or env DBT_VARS.
+  # PR5 may add per-merchant commission overrides.
+  commission_rate: 0.15
 
 # Model configurations
 models:
