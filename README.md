@@ -184,15 +184,3 @@ CLI (Click)
        ├─ poll_report_until_ready() → BronzeWriter.write_raw(reports_result)
        └─ LogsPort (InMemoryLogs PR1 → PostgresLogs PR2a)
 ```
-
-## What's Next
-
-- [x] **PR2a** — KMSSecrets + PostgresLogs + Config wiring (DONE)
-- [x] **PR2b** — Backfill loop (`--backfill` flag, `compute_window_for_date`, `backfill_dates`) (DONE)
-- [x] **PR3a** — dbt Silver transformation (`silver_orders` model, `bronze.orders` source, 4 custom data tests, moto S3 integration harness) (DONE)
-- [ ] **PR3b** — `silver_reports` model + dbt runner CLI subcommand
-- [ ] PR4 — PII salted hashing + full-refresh re-materialization
-- [ ] Docker containerization and scheduled orchestration
-- [ ] End-to-end encrypted credential bootstrap flow
-- [ ] Streamlit UI
-- [ ] OAuth `authorization_code` flow, webhooks, cron
